@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "66315162842",
+    "project_id": "hallify-df669",
+    "storage_bucket": "hallify-df669.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:66315162842:android:fe506ebb8b8d17d3c2c1e3",
+        "android_client_info": {
+          "package_name": "com.example.hallify"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB60AuVVaU0Y2PEj1EVbWSo2fkFhqrXaSA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
