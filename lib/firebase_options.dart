@@ -41,48 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyB0kO5MDsAJTWdDwFN80O6Qth44a2yYqD8',
-    appId: '1:66315162842:web:9fb93a68ab69e03bc2c1e3',
-    messagingSenderId: '66315162842',
-    projectId: 'hallify-df669',
-    authDomain: 'hallify-df669.firebaseapp.com',
-    storageBucket: 'hallify-df669.firebasestorage.app',
-    measurementId: 'G-ZSSTKEMTRL',
+    apiKey: String.fromEnvironment('FIREBASE_WEB_API_KEY', defaultValue: 'AIzaSyB0kO5MDsAJTWdDwFN80O6Qth44a2yYqD8'),
+    appId: String.fromEnvironment('FIREBASE_WEB_APP_ID', defaultValue: '1:66315162842:web:9fb93a68ab69e03bc2c1e3'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '66315162842'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'hallify-df669'),
+    authDomain: String.fromEnvironment('FIREBASE_AUTH_DOMAIN', defaultValue: 'hallify-df669.firebaseapp.com'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'hallify-df669.firebasestorage.app'),
+    measurementId: String.fromEnvironment('FIREBASE_WEB_MEASUREMENT_ID', defaultValue: 'G-ZSSTKEMTRL'),
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB60AuVVaU0Y2PEj1EVbWSo2fkFhqrXaSA',
-    appId: '1:66315162842:android:fe506ebb8b8d17d3c2c1e3',
-    messagingSenderId: '66315162842',
-    projectId: 'hallify-df669',
-    storageBucket: 'hallify-df669.firebasestorage.app',
+    apiKey: String.fromEnvironment('FIREBASE_ANDROID_API_KEY', defaultValue: 'AIzaSyB60AuVVaU0Y2PEj1EVbWSo2fkFhqrXaSA'),
+    appId: String.fromEnvironment('FIREBASE_ANDROID_APP_ID', defaultValue: '1:66315162842:android:fe506ebb8b8d17d3c2c1e3'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '66315162842'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'hallify-df669'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'hallify-df669.firebasestorage.app'),
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCMQhG7X6SxDtqO5RnS1KEqfNlZRQhN3gQ',
-    appId: '1:66315162842:ios:f445fb418e94f36dc2c1e3',
-    messagingSenderId: '66315162842',
-    projectId: 'hallify-df669',
-    storageBucket: 'hallify-df669.firebasestorage.app',
-    iosBundleId: 'com.example.hallify',
+    apiKey: String.fromEnvironment('FIREBASE_IOS_API_KEY', defaultValue: 'AIzaSyCMQhG7X6SxDtqO5RnS1KEqfNlZRQhN3gQ'),
+    appId: String.fromEnvironment('FIREBASE_IOS_APP_ID', defaultValue: '1:66315162842:ios:f445fb418e94f36dc2c1e3'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '66315162842'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'hallify-df669'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'hallify-df669.firebasestorage.app'),
+    iosBundleId: String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID', defaultValue: 'com.example.hallify'),
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCMQhG7X6SxDtqO5RnS1KEqfNlZRQhN3gQ',
-    appId: '1:66315162842:ios:f445fb418e94f36dc2c1e3',
-    messagingSenderId: '66315162842',
-    projectId: 'hallify-df669',
-    storageBucket: 'hallify-df669.firebasestorage.app',
-    iosBundleId: 'com.example.hallify',
+    apiKey: String.fromEnvironment('FIREBASE_IOS_API_KEY', defaultValue: 'AIzaSyCMQhG7X6SxDtqO5RnS1KEqfNlZRQhN3gQ'),
+    appId: String.fromEnvironment('FIREBASE_IOS_APP_ID', defaultValue: '1:66315162842:ios:f445fb418e94f36dc2c1e3'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '66315162842'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'hallify-df669'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'hallify-df669.firebasestorage.app'),
+    iosBundleId: String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID', defaultValue: 'com.example.hallify'),
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyB0kO5MDsAJTWdDwFN80O6Qth44a2yYqD8',
-    appId: '1:66315162842:web:464fe3695875ef18c2c1e3',
-    messagingSenderId: '66315162842',
-    projectId: 'hallify-df669',
-    authDomain: 'hallify-df669.firebaseapp.com',
-    storageBucket: 'hallify-df669.firebasestorage.app',
-    measurementId: 'G-YG618QJVLZ',
+    apiKey: String.fromEnvironment('FIREBASE_WINDOWS_API_KEY', defaultValue: 'AIzaSyB0kO5MDsAJTWdDwFN80O6Qth44a2yYqD8'),
+    appId: String.fromEnvironment('FIREBASE_WINDOWS_APP_ID', defaultValue: '1:66315162842:web:464fe3695875ef18c2c1e3'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '66315162842'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'hallify-df669'),
+    authDomain: String.fromEnvironment('FIREBASE_AUTH_DOMAIN', defaultValue: 'hallify-df669.firebaseapp.com'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'hallify-df669.firebasestorage.app'),
+    measurementId: String.fromEnvironment('FIREBASE_WINDOWS_MEASUREMENT_ID', defaultValue: 'G-YG618QJVLZ'),
   );
 }
