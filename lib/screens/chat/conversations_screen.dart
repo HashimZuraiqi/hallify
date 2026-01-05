@@ -136,7 +136,7 @@ class _ConversationTile extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              conversation.lastMessage ?? 'No messages yet',
+              conversation.lastMessage,
               style: TextStyle(
                 color: hasUnread ? Colors.black87 : Colors.grey[600],
                 fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,

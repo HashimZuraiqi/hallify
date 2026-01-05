@@ -8,8 +8,6 @@ import '../../providers/chat_provider.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/hall_card.dart';
 import '../../widgets/loading_widget.dart';
-import '../../widgets/custom_text_field.dart';
-import '../auth/login_screen.dart';
 import '../chat/conversations_screen.dart';
 import 'browse_halls_screen.dart';
 import 'hall_details_screen.dart';

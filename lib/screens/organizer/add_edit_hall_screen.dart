@@ -10,7 +10,6 @@ import '../../utils/validators.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/custom_button.dart';
-import '../../widgets/image_picker_widget.dart';
 import '../../widgets/map_picker_widget.dart';
 import '../../widgets/loading_widget.dart';
 

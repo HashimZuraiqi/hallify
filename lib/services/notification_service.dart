@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:http/http.dart' as http;
 
 /// Background message handler - must be top-level function
 @pragma('vm:entry-point')

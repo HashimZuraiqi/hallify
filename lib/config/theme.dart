@@ -49,13 +49,11 @@ class AppTheme {
     colorScheme: const ColorScheme.light(
       primary: primaryColor,
       secondary: secondaryColor,
-      surface: surfaceColor,
-      background: backgroundColor,
+      surface: backgroundColor,
       error: errorColor,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: textPrimary,
-      onBackground: textPrimary,
       onError: Colors.white,
     ),
     
@@ -72,12 +70,12 @@ class AppTheme {
       ),
     ),
     
-    cardTheme: CardThemeData(
+    cardTheme: const CardThemeData(
       color: cardColor,
       elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black12,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
     ),
     
@@ -267,12 +265,10 @@ class AppTheme {
       primary: primaryColor,
       secondary: secondaryColor,
       surface: Color(0xFF16213E),
-      background: Color(0xFF1A1A2E),
       error: errorColor,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: Colors.white,
-      onBackground: Colors.white,
       onError: Colors.white,
     ),
     
@@ -289,12 +285,12 @@ class AppTheme {
       ),
     ),
     
-    cardTheme: CardThemeData(
-      color: const Color(0xFF16213E),
+    cardTheme: const CardThemeData(
+      color: Color(0xFF16213E),
       elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.3),
+      shadowColor: Colors.black26,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
     ),
     

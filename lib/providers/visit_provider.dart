@@ -1,13 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../models/visit_request_model.dart';
-import '../models/hall_model.dart';
-import '../models/user_model.dart';
 import '../services/firestore_service.dart';
-import '../services/notification_service.dart';
 
 class VisitProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
-  final NotificationService _notificationService = NotificationService();
 
   List<VisitRequestModel> _customerVisits = [];
   List<VisitRequestModel> _organizerVisits = [];
