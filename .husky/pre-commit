@@ -1,0 +1,12 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running Flutter Analysis..."
+flutter analyze --no-fatal-infos
+
+if [ $? -ne 0 ]; then
+  echo "❌ Analysis failed! Fix errors before committing."
+  exit 1
+fi
+
+echo "✅ Analysis passed!"

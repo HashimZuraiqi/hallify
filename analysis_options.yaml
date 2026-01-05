@@ -24,5 +24,16 @@ linter:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 
+# Analyzer settings
+analyzer:
+  errors:
+    # Treat these as errors - builds will fail
+    missing_required_param: error
+    missing_return: error
+    todo: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/config/firebase_options.dart"
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
