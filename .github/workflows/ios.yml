@@ -1,0 +1,35 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 'stable'
+
+    - name: Install packages
+      run: flutter pub get
+
+    - name: Build iOS (no codesign)
+      run: flutter build ios --release --no-codesign
+
+    - name: Archive IPA
+      run: |
+        cd build/ios/iphoneos
+        mkdir Payload
+        cp -r Runner.app Payload
+        zip -r app.ipa Payload
+
+    - name: Upload IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: hallify-ipa
+        path: build/ios/iphoneos/app.ipa
