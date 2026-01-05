@@ -1,0 +1,56 @@
+name: Build Android & iOS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.38.5'
+          architecture: x64
+
+      - name: Flutter Pub Get
+        run: flutter pub get
+
+      # FORCE iOS platform & Google Maps compatibility
+      - name: Fix iOS Platform & Deployment Target
+        run: |
+          flutter create --platforms=ios .
+          sed -i '' "1s/^/platform :ios, '14.0'\n/" ios/Podfile
+          sed -i '' "s/IPHONEOS_DEPLOYMENT_TARGET = 13.0/IPHONEOS_DEPLOYMENT_TARGET = 14.0/g" ios/Runner.xcodeproj/project.pbxproj
+
+      - name: Flutter Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Create IPA
+        run: |
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload
+          zip -r hallify.ipa Payload
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hallify-builds
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+            build/ios/iphoneos/hallify.ipa
