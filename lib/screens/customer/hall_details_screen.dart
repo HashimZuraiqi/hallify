@@ -59,12 +59,12 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
   Future<void> _startChat() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    
+
     if (authProvider.user == null) return;
 
     try {
       Helpers.showLoadingDialog(context, message: 'Starting conversation...');
-      
+
       final conversation = await chatProvider.getOrCreateConversation(
         participantIds: [authProvider.user!.id, widget.hall.organizerId],
         participantNames: {
@@ -114,9 +114,7 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
                   // Image Carousel
                   PageView.builder(
                     controller: _pageController,
-                    itemCount: widget.hall.imageUrls.isEmpty
-                        ? 1
-                        : widget.hall.imageUrls.length,
+                    itemCount: widget.hall.imageUrls.isEmpty ? 1 : widget.hall.imageUrls.length,
                     onPageChanged: (index) {
                       setState(() => _currentImageIndex = index);
                     },
@@ -180,9 +178,7 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
                             margin: const EdgeInsets.symmetric(horizontal: 4),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _currentImageIndex == index
-                                  ? Colors.white
-                                  : Colors.white.withOpacity(0.5),
+                              color: _currentImageIndex == index ? Colors.white : Colors.white.withOpacity(0.5),
                             ),
                           ),
                         ),
@@ -707,23 +703,17 @@ class _BookingBottomSheetState extends State<_BookingBottomSheet> {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppTheme.primaryColor
-                              : Colors.grey[100],
+                          color: isSelected ? AppTheme.primaryColor : Colors.grey[100],
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected
-                                ? AppTheme.primaryColor
-                                : Colors.grey[300]!,
+                            color: isSelected ? AppTheme.primaryColor : Colors.grey[300]!,
                           ),
                         ),
                         child: Text(
                           slot,
                           style: TextStyle(
                             color: isSelected ? Colors.white : Colors.grey[700],
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                       ),

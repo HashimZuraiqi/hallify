@@ -175,17 +175,18 @@ class ChatProvider with ChangeNotifier {
   }) async {
     try {
       // Use provided message or construct from parameters
-      final msg = message ?? MessageModel(
-        id: '',
-        conversationId: conversationId!,
-        senderId: sender!.uid,
-        senderName: sender.name,
-        receiverId: receiverId!,
-        receiverName: receiverName!,
-        content: content!,
-        imageUrl: imageUrl,
-        createdAt: DateTime.now(),
-      );
+      final msg = message ??
+          MessageModel(
+            id: '',
+            conversationId: conversationId!,
+            senderId: sender!.uid,
+            senderName: sender.name,
+            receiverId: receiverId!,
+            receiverName: receiverName!,
+            content: content!,
+            imageUrl: imageUrl,
+            createdAt: DateTime.now(),
+          );
 
       await _firestoreService.sendMessage(msg);
 

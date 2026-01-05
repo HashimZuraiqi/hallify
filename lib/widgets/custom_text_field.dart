@@ -86,11 +86,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
         hintText: widget.hint,
         filled: true,
         fillColor: widget.fillColor ?? Colors.white,
-        contentPadding: widget.contentPadding ??
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        prefixIcon: widget.prefixIcon != null
-            ? Icon(widget.prefixIcon, size: 22)
-            : null,
+        contentPadding: widget.contentPadding ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon, size: 22) : null,
         suffix: widget.suffix,
         suffixIcon: widget.obscureText
             ? IconButton(

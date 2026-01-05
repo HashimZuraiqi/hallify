@@ -124,7 +124,7 @@ class NotificationService {
     print('Sending notification to: $fcmToken');
     print('Title: $title');
     print('Body: $body');
-    
+
     // The actual implementation would call your backend API
     // which would use Firebase Admin SDK to send the notification
   }

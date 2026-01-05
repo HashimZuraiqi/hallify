@@ -160,9 +160,9 @@ class ConversationModel {
     this.hallId,
     this.hallName,
     this.createdAt,
-  }) : participants = participants ?? participantIds ?? [],
-       lastSenderId = lastSenderId ?? lastMessageSenderId ?? '',
-       unreadCount = unreadCount ?? unreadCounts ?? {};
+  })  : participants = participants ?? participantIds ?? [],
+        lastSenderId = lastSenderId ?? lastMessageSenderId ?? '',
+        unreadCount = unreadCount ?? unreadCounts ?? {};
 
   /// Create ConversationModel from Firestore document
   factory ConversationModel.fromFirestore(DocumentSnapshot doc) {
@@ -172,8 +172,7 @@ class ConversationModel {
       participants: List<String>.from(data['participants'] ?? []),
       lastMessage: data['lastMessage'] ?? '',
       lastSenderId: data['lastSenderId'] ?? '',
-      lastMessageTime:
-          (data['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastMessageTime: (data['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
       unreadCount: Map<String, int>.from(data['unreadCount'] ?? {}),
       participantNames: Map<String, String>.from(data['participantNames'] ?? {}),
       hallId: data['hallId'],

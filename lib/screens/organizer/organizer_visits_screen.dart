@@ -15,8 +15,7 @@ class OrganizerVisitsScreen extends StatefulWidget {
   State<OrganizerVisitsScreen> createState() => _OrganizerVisitsScreenState();
 }
 
-class _OrganizerVisitsScreenState extends State<OrganizerVisitsScreen>
-    with SingleTickerProviderStateMixin {
+class _OrganizerVisitsScreenState extends State<OrganizerVisitsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -63,27 +62,19 @@ class _OrganizerVisitsScreenState extends State<OrganizerVisitsScreen>
                 emptyMessage: 'No visits yet',
               ),
               _OrganizerVisitsList(
-                visits: visitProvider.organizerVisits
-                    .where((v) => v.status == VisitStatus.pending)
-                    .toList(),
+                visits: visitProvider.organizerVisits.where((v) => v.status == VisitStatus.pending).toList(),
                 emptyMessage: 'No pending requests',
               ),
               _OrganizerVisitsList(
-                visits: visitProvider.organizerVisits
-                    .where((v) => v.status == VisitStatus.approved)
-                    .toList(),
+                visits: visitProvider.organizerVisits.where((v) => v.status == VisitStatus.approved).toList(),
                 emptyMessage: 'No approved visits',
               ),
               _OrganizerVisitsList(
-                visits: visitProvider.organizerVisits
-                    .where((v) => v.status == VisitStatus.completed)
-                    .toList(),
+                visits: visitProvider.organizerVisits.where((v) => v.status == VisitStatus.completed).toList(),
                 emptyMessage: 'No completed visits',
               ),
               _OrganizerVisitsList(
-                visits: visitProvider.organizerVisits
-                    .where((v) => v.status == VisitStatus.rejected)
-                    .toList(),
+                visits: visitProvider.organizerVisits.where((v) => v.status == VisitStatus.rejected).toList(),
                 emptyMessage: 'No rejected visits',
               ),
             ],
@@ -116,8 +107,7 @@ class _OrganizerVisitsList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        final visitProvider =
-            Provider.of<VisitProvider>(context, listen: false);
+        final visitProvider = Provider.of<VisitProvider>(context, listen: false);
 
         if (authProvider.user != null) {
           await visitProvider.loadOrganizerVisits(authProvider.user!.id);
@@ -132,12 +122,8 @@ class _OrganizerVisitsList extends StatelessWidget {
             visit: visit,
             isOrganizer: true,
             onTap: () => _showVisitDetails(context, visit),
-            onApprove: visit.status == VisitStatus.pending
-                ? () => _handleApprove(context, visit)
-                : null,
-            onReject: visit.status == VisitStatus.pending
-                ? () => _handleReject(context, visit)
-                : null,
+            onApprove: visit.status == VisitStatus.pending ? () => _handleApprove(context, visit) : null,
+            onReject: visit.status == VisitStatus.pending ? () => _handleReject(context, visit) : null,
           );
         },
       ),
@@ -177,8 +163,7 @@ class _OrganizerVisitsList extends StatelessWidget {
     );
 
     if (confirmed == true) {
-      final visitProvider =
-          Provider.of<VisitProvider>(context, listen: false);
+      final visitProvider = Provider.of<VisitProvider>(context, listen: false);
       try {
         await visitProvider.approveVisitRequest(visit.id);
         Helpers.showSuccessSnackbar(context, 'Visit approved!');
@@ -227,8 +212,7 @@ class _OrganizerVisitsList extends StatelessWidget {
     );
 
     if (result != null) {
-      final visitProvider =
-          Provider.of<VisitProvider>(context, listen: false);
+      final visitProvider = Provider.of<VisitProvider>(context, listen: false);
       try {
         await visitProvider.rejectVisitRequest(
           visit.id,
@@ -271,8 +255,7 @@ class _OrganizerVisitDetailsSheet extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: _getStatusColor(visit.status).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -438,8 +421,7 @@ class _OrganizerVisitDetailsSheet extends StatelessWidget {
     );
 
     if (result != null) {
-      final visitProvider =
-          Provider.of<VisitProvider>(context, listen: false);
+      final visitProvider = Provider.of<VisitProvider>(context, listen: false);
       try {
         await visitProvider.rejectVisitRequest(
           visit.id,
@@ -473,8 +455,7 @@ class _OrganizerVisitDetailsSheet extends StatelessWidget {
 
     if (confirmed == true) {
       Navigator.pop(context);
-      final visitProvider =
-          Provider.of<VisitProvider>(context, listen: false);
+      final visitProvider = Provider.of<VisitProvider>(context, listen: false);
       try {
         await visitProvider.completeVisitRequest(visit.id);
         Helpers.showSuccessSnackbar(context, 'Visit marked as completed');

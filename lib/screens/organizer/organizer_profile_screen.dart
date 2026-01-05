@@ -85,8 +85,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              final authProvider =
-                  Provider.of<AuthProvider>(context, listen: false);
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
               await authProvider.signOut();
               if (!mounted) return;
               Navigator.pushAndRemoveUntil(
@@ -140,9 +139,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
 
           final totalHalls = hallProvider.organizerHalls.length;
           final totalVisits = visitProvider.organizerVisits.length;
-          final completedVisits = visitProvider.organizerVisits
-              .where((v) => v.status.name == 'completed')
-              .length;
+          final completedVisits = visitProvider.organizerVisits.where((v) => v.status.name == 'completed').length;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -173,8 +170,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
                                   ? CachedNetworkImage(
                                       imageUrl: user.profileImageUrl!,
                                       fit: BoxFit.cover,
-                                      placeholder: (_, __) =>
-                                          const ShimmerLoading(
+                                      placeholder: (_, __) => const ShimmerLoading(
                                         width: 120,
                                         height: 120,
                                       ),
@@ -209,8 +205,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
                                 ? CachedNetworkImage(
                                     imageUrl: user.profileImageUrl!,
                                     fit: BoxFit.cover,
-                                    placeholder: (_, __) =>
-                                        const ShimmerLoading(
+                                    placeholder: (_, __) => const ShimmerLoading(
                                       width: 120,
                                       height: 120,
                                     ),
@@ -378,8 +373,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
                         context: context,
                         applicationName: 'Hallify',
                         applicationVersion: '1.0.0',
-                        applicationLegalese:
-                            '© 2024 Hallify. All rights reserved.',
+                        applicationLegalese: '© 2024 Hallify. All rights reserved.',
                       );
                     },
                   ),

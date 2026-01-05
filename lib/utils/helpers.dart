@@ -153,9 +153,7 @@ class Helpers {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: isDangerous
-                ? ElevatedButton.styleFrom(backgroundColor: Colors.red)
-                : null,
+            style: isDangerous ? ElevatedButton.styleFrom(backgroundColor: Colors.red) : null,
             child: Text(confirmText),
           ),
         ],
@@ -196,17 +194,13 @@ class Helpers {
   /// Check if date is today
   static bool isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
   /// Check if date is tomorrow
   static bool isTomorrow(DateTime date) {
     final tomorrow = DateTime.now().add(const Duration(days: 1));
-    return date.year == tomorrow.year &&
-        date.month == tomorrow.month &&
-        date.day == tomorrow.day;
+    return date.year == tomorrow.year && date.month == tomorrow.month && date.day == tomorrow.day;
   }
 
   /// Get greeting based on time of day

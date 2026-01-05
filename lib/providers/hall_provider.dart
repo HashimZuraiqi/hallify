@@ -130,14 +130,14 @@ class HallProvider with ChangeNotifier {
         updatedAt: DateTime.now(),
       );
       await _firestoreService.updateHall(updatedHall);
-      
+
       // Update local list
       final index = _myHalls.indexWhere((h) => h.id == hallId);
       if (index != -1) {
         _myHalls[index] = updatedHall;
         notifyListeners();
       }
-      
+
       return true;
     } catch (e) {
       _errorMessage = e.toString();

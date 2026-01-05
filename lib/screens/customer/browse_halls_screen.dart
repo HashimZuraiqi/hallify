@@ -122,17 +122,13 @@ class _BrowseHallsScreenState extends State<BrowseHallsScreen> {
           Expanded(
             child: Consumer<HallProvider>(
               builder: (context, hallProvider, _) {
-                final halls = hallProvider.searchResults.isNotEmpty
-                    ? hallProvider.searchResults
-                    : hallProvider.halls;
+                final halls = hallProvider.searchResults.isNotEmpty ? hallProvider.searchResults : hallProvider.halls;
 
                 // Filter by search query
                 final filteredHalls = _searchController.text.isEmpty
                     ? halls
                     : halls
-                        .where((hall) => hall.name
-                            .toLowerCase()
-                            .contains(_searchController.text.toLowerCase()))
+                        .where((hall) => hall.name.toLowerCase().contains(_searchController.text.toLowerCase()))
                         .toList();
 
                 if (hallProvider.isLoading) {

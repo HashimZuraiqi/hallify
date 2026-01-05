@@ -64,9 +64,7 @@ class FirestoreService {
         .where('isAvailable', isEqualTo: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => HallModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => HallModel.fromFirestore(doc)).toList());
   }
 
   /// Get halls by organizer ID
@@ -75,9 +73,7 @@ class FirestoreService {
         .where('organizerId', isEqualTo: organizerId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => HallModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => HallModel.fromFirestore(doc)).toList());
   }
 
   /// Search halls with filters
@@ -101,9 +97,7 @@ class FirestoreService {
       }
 
       final snapshot = await query.get();
-      List<HallModel> halls = snapshot.docs
-          .map((doc) => HallModel.fromFirestore(doc))
-          .toList();
+      List<HallModel> halls = snapshot.docs.map((doc) => HallModel.fromFirestore(doc)).toList();
 
       // Apply additional filters in memory
       if (minCapacity != null) {
@@ -134,9 +128,7 @@ class FirestoreService {
           .limit(limit)
           .get();
 
-      return snapshot.docs
-          .map((doc) => HallModel.fromFirestore(doc))
-          .toList();
+      return snapshot.docs.map((doc) => HallModel.fromFirestore(doc)).toList();
     } catch (e) {
       throw Exception('Failed to get featured halls: $e');
     }
@@ -193,9 +185,7 @@ class FirestoreService {
         .where('customerId', isEqualTo: customerId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => VisitRequestModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => VisitRequestModel.fromFirestore(doc)).toList());
   }
 
   /// Get visit requests for organizer
@@ -204,9 +194,7 @@ class FirestoreService {
         .where('organizerId', isEqualTo: organizerId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => VisitRequestModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => VisitRequestModel.fromFirestore(doc)).toList());
   }
 
   /// Get visit requests for a specific hall
@@ -215,9 +203,7 @@ class FirestoreService {
         .where('hallId', isEqualTo: hallId)
         .orderBy('visitDate', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => VisitRequestModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => VisitRequestModel.fromFirestore(doc)).toList());
   }
 
   /// Check if time slot is available
@@ -234,8 +220,7 @@ class FirestoreService {
           .where('hallId', isEqualTo: hallId)
           .where('visitDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
           .where('visitDate', isLessThan: Timestamp.fromDate(endOfDay))
-          .where('status', whereIn: ['pending', 'approved'])
-          .get();
+          .where('status', whereIn: ['pending', 'approved']).get();
 
       // Check if any existing visit conflicts with the requested time
       for (var doc in snapshot.docs) {
@@ -261,12 +246,9 @@ class FirestoreService {
           .where('hallId', isEqualTo: hallId)
           .where('visitDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
           .where('visitDate', isLessThan: Timestamp.fromDate(endOfDay))
-          .where('status', whereIn: ['pending', 'approved'])
-          .get();
+          .where('status', whereIn: ['pending', 'approved']).get();
 
-      return snapshot.docs
-          .map((doc) => VisitRequestModel.fromFirestore(doc).visitTime)
-          .toList();
+      return snapshot.docs.map((doc) => VisitRequestModel.fromFirestore(doc).visitTime).toList();
     } catch (e) {
       return [];
     }
@@ -285,9 +267,7 @@ class FirestoreService {
   }) async {
     try {
       // Check if conversation exists
-      final snapshot = await _conversationsCollection
-          .where('participants', arrayContains: userId1)
-          .get();
+      final snapshot = await _conversationsCollection.where('participants', arrayContains: userId1).get();
 
       for (var doc in snapshot.docs) {
         final conversation = ConversationModel.fromFirestore(doc);
@@ -340,9 +320,7 @@ class FirestoreService {
         .where('conversationId', isEqualTo: conversationId)
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => MessageModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList());
   }
 
   /// Get conversations for a user
@@ -351,9 +329,7 @@ class FirestoreService {
         .where('participants', arrayContains: userId)
         .orderBy('lastMessageTime', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ConversationModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => ConversationModel.fromFirestore(doc)).toList());
   }
 
   /// Mark messages as read

@@ -71,10 +71,10 @@ class AuthProvider with ChangeNotifier {
         phone: phone,
       );
       _status = AuthStatus.authenticated;
-      
+
       // Update FCM token
       await _updateFcmToken();
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -100,10 +100,10 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
       _status = AuthStatus.authenticated;
-      
+
       // Update FCM token
       await _updateFcmToken();
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -156,7 +156,7 @@ class AuthProvider with ChangeNotifier {
     try {
       // Use profileImagePath if provided, otherwise use profileImageUrl
       final imageUrl = profileImagePath ?? profileImageUrl;
-      
+
       await _authService.updateUserProfile(
         uid: _currentUser!.uid,
         name: name,

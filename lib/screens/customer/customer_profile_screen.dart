@@ -46,7 +46,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   Future<void> _saveProfile() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     setState(() => _isSaving = true);
 
     try {
@@ -83,8 +83,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              final authProvider =
-                  Provider.of<AuthProvider>(context, listen: false);
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
               await authProvider.signOut();
               if (!mounted) return;
               Navigator.pushAndRemoveUntil(

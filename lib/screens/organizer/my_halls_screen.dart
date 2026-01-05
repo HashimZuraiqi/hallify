@@ -87,8 +87,7 @@ class MyHallsScreen extends StatelessWidget {
 
           return RefreshIndicator(
             onRefresh: () async {
-              final authProvider =
-                  Provider.of<AuthProvider>(context, listen: false);
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
               if (authProvider.user != null) {
                 await hallProvider.loadOrganizerHalls(authProvider.user!.id);
               }
@@ -148,8 +147,7 @@ class _HallManagementCard extends StatelessWidget {
                     ),
                     label: Text(hall.isActive ? 'Active' : 'Inactive'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor:
-                          hall.isActive ? Colors.green : Colors.grey,
+                      foregroundColor: hall.isActive ? Colors.green : Colors.grey,
                       side: BorderSide(
                         color: hall.isActive ? Colors.green : Colors.grey,
                       ),
@@ -213,8 +211,7 @@ class _HallManagementCard extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              final hallProvider =
-                  Provider.of<HallProvider>(context, listen: false);
+              final hallProvider = Provider.of<HallProvider>(context, listen: false);
               try {
                 await hallProvider.deleteHall(hall.id);
                 Helpers.showSuccessSnackbar(context, 'Hall deleted');

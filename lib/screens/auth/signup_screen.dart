@@ -50,22 +50,20 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     final success = await authProvider.signUp(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
       role: _selectedRole,
-      phone: _phoneController.text.trim().isNotEmpty
-          ? _phoneController.text.trim()
-          : null,
+      phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
     );
 
     if (!mounted) return;
 
     if (success) {
       Helpers.showSnackBar(context, 'Account created successfully!');
-      
+
       // Navigate based on role
       Widget nextScreen;
       if (authProvider.isOrganizer) {
@@ -341,9 +339,7 @@ class _RoleCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.1)
-              : Colors.grey.shade50,
+          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppTheme.primaryColor : Colors.grey.shade200,

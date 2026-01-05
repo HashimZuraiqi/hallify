@@ -12,7 +12,7 @@ class UserModel {
   final String? fcmToken;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  
+
   // Alias for consistency
   String get id => uid;
 

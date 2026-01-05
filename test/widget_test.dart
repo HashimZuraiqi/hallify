@@ -11,7 +11,7 @@ void main() {
   testWidgets('Hallify app basic test', (WidgetTester tester) async {
     // This is a placeholder test that ensures the app initializes
     // Replace with actual widget tests as needed
-    
+
     // For now, just verify that the test framework is working
     expect(true, true);
   });

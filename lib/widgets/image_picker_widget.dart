@@ -61,9 +61,7 @@ class ImagePickerWidget extends StatelessWidget {
               return _ImageTile(
                 isNetwork: true,
                 imageUrl: entry.value,
-                onRemove: onRemoveExisting != null
-                    ? () => onRemoveExisting!(entry.value)
-                    : null,
+                onRemove: onRemoveExisting != null ? () => onRemoveExisting!(entry.value) : null,
               );
             }),
             // Selected images
@@ -71,9 +69,7 @@ class ImagePickerWidget extends StatelessWidget {
               return _ImageTile(
                 isNetwork: false,
                 imageFile: entry.value,
-                onRemove: onRemoveSelected != null
-                    ? () => onRemoveSelected!(entry.key)
-                    : null,
+                onRemove: onRemoveSelected != null ? () => onRemoveSelected!(entry.key) : null,
               );
             }),
             // Add button
@@ -152,8 +148,7 @@ class ImagePickerWidget extends StatelessWidget {
     );
 
     if (pickedFile != null) {
-      final newImages = List<File>.from(selectedImages)
-        ..add(File(pickedFile.path));
+      final newImages = List<File>.from(selectedImages)..add(File(pickedFile.path));
       onImagesSelected(newImages);
     }
   }
@@ -161,7 +156,7 @@ class ImagePickerWidget extends StatelessWidget {
   Future<void> _pickMultipleImages() async {
     final picker = ImagePicker();
     final remainingSlots = maxImages - selectedImages.length - existingImageUrls.length;
-    
+
     final pickedFiles = await picker.pickMultiImage(
       imageQuality: 80,
       maxWidth: 1920,
@@ -171,9 +166,7 @@ class ImagePickerWidget extends StatelessWidget {
     if (pickedFiles.isNotEmpty) {
       final newImages = List<File>.from(selectedImages)
         ..addAll(
-          pickedFiles
-              .take(remainingSlots)
-              .map((xFile) => File(xFile.path)),
+          pickedFiles.take(remainingSlots).map((xFile) => File(xFile.path)),
         );
       onImagesSelected(newImages);
     }
@@ -215,8 +208,7 @@ class _ImageTile extends StatelessWidget {
                       return Center(
                         child: CircularProgressIndicator(
                           value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
+                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                               : null,
                         ),
                       );

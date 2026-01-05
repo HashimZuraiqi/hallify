@@ -71,8 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Resolve the receiver from the current conversation
     final conversation = chatProvider.getConversationById(widget.conversationId);
-    final receiverId = conversation?.participants
-        .firstWhere((id) => id != authProvider.user!.id, orElse: () => '');
+    final receiverId = conversation?.participants.firstWhere((id) => id != authProvider.user!.id, orElse: () => '');
 
     if (receiverId == null || receiverId.isEmpty) {
       Helpers.showErrorSnackbar(context, 'Unable to find the recipient for this chat.');
@@ -99,7 +98,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
       // Refresh messages stream to ensure the just-sent message is rendered immediately
       chatProvider.loadMessages(widget.conversationId);
-      
+
       // Scroll to bottom after sending
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
@@ -196,8 +195,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
-                    final authProvider =
-                        Provider.of<AuthProvider>(context, listen: false);
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
                     final isMe = message.senderId == authProvider.user?.id;
 
                     // Show date separator if needed
@@ -237,9 +235,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
+    return date1.year == date2.year && date1.month == date2.month && date1.day == date2.day;
   }
 }
 

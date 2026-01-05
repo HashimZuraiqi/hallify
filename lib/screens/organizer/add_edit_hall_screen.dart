@@ -436,8 +436,7 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_photo_alternate,
-                        size: 48, color: Colors.grey[400]),
+                    Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
                     const SizedBox(height: 8),
                     Text(
                       'Add Images',

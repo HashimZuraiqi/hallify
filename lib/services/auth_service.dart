@@ -45,10 +45,7 @@ class AuthService {
       );
 
       // Save user to Firestore
-      await _firestore
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set(user.toMap());
+      await _firestore.collection('users').doc(credential.user!.uid).set(user.toMap());
 
       // Update display name (do this after Firestore to avoid platform channel issues)
       try {
@@ -93,10 +90,7 @@ class AuthService {
       print('Successfully signed in with UID: $uid');
 
       // Get user data from Firestore
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(uid)
-          .get();
+      final userDoc = await _firestore.collection('users').doc(uid).get();
 
       if (!userDoc.exists) {
         print('User document not found, creating default profile...');
@@ -107,12 +101,9 @@ class AuthService {
           role: UserRole.customer,
           createdAt: DateTime.now(),
         );
-        
-        await _firestore
-            .collection('users')
-            .doc(uid)
-            .set(defaultUser.toMap());
-        
+
+        await _firestore.collection('users').doc(uid).set(defaultUser.toMap());
+
         return defaultUser;
       }
 
@@ -144,10 +135,7 @@ class AuthService {
     try {
       if (currentUser == null) return null;
 
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(currentUser!.uid)
-          .get();
+      final userDoc = await _firestore.collection('users').doc(currentUser!.uid).get();
 
       if (!userDoc.exists) return null;
 

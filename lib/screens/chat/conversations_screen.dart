@@ -80,14 +80,11 @@ class _ConversationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Get the other participant's name
-    final otherUserId = conversation.participantIds
-        .firstWhere((id) => id != currentUserId, orElse: () => '');
-    final otherUserName =
-        conversation.participantNames[otherUserId] ?? 'Unknown';
+    final otherUserId = conversation.participantIds.firstWhere((id) => id != currentUserId, orElse: () => '');
+    final otherUserName = conversation.participantNames[otherUserId] ?? 'Unknown';
 
     // Check if there are unread messages
-    final hasUnread = conversation.lastMessageSenderId != currentUserId &&
-        conversation.lastMessageSenderId.isNotEmpty;
+    final hasUnread = conversation.lastMessageSenderId != currentUserId && conversation.lastMessageSenderId.isNotEmpty;
 
     return ListTile(
       leading: CircleAvatar(

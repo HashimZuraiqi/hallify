@@ -23,8 +23,8 @@ class HallModel {
   final int totalReviews;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  
-  // Aliases for consistency  
+
+  // Aliases for consistency
   bool get isActive => isAvailable;
   int get reviewCount => totalReviews;
 

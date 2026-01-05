@@ -168,15 +168,10 @@ class _DashboardTab extends StatelessWidget {
               Consumer2<HallProvider, VisitProvider>(
                 builder: (context, hallProvider, visitProvider, _) {
                   final totalHalls = hallProvider.organizerHalls.length;
-                  final pendingVisits = visitProvider.organizerVisits
-                      .where((v) => v.status.name == 'pending')
-                      .length;
-                  final approvedVisits = visitProvider.organizerVisits
-                      .where((v) => v.status.name == 'approved')
-                      .length;
-                  final completedVisits = visitProvider.organizerVisits
-                      .where((v) => v.status.name == 'completed')
-                      .length;
+                  final pendingVisits = visitProvider.organizerVisits.where((v) => v.status.name == 'pending').length;
+                  final approvedVisits = visitProvider.organizerVisits.where((v) => v.status.name == 'approved').length;
+                  final completedVisits =
+                      visitProvider.organizerVisits.where((v) => v.status.name == 'completed').length;
 
                   return GridView.count(
                     crossAxisCount: 2,
@@ -235,10 +230,8 @@ class _DashboardTab extends StatelessWidget {
               ),
               Consumer<VisitProvider>(
                 builder: (context, visitProvider, _) {
-                  final pendingVisits = visitProvider.organizerVisits
-                      .where((v) => v.status.name == 'pending')
-                      .take(3)
-                      .toList();
+                  final pendingVisits =
+                      visitProvider.organizerVisits.where((v) => v.status.name == 'pending').take(3).toList();
 
                   if (visitProvider.isLoading) {
                     return const ShimmerLoading(height: 100, width: double.infinity);
@@ -380,7 +373,7 @@ class _DashboardTab extends StatelessWidget {
 
   void _handleReject(BuildContext context, String visitId) async {
     final reasonController = TextEditingController();
-    
+
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(

@@ -24,7 +24,7 @@ class MapPickerWidget extends StatefulWidget {
 class _MapPickerWidgetState extends State<MapPickerWidget> {
   GoogleMapController? _mapController;
   final LocationService _locationService = LocationService();
-  
+
   LatLng _selectedPosition = const LatLng(40.7128, -74.0060); // Default: NYC
   String? _selectedAddress;
   bool _isLoading = false;
@@ -42,7 +42,7 @@ class _MapPickerWidgetState extends State<MapPickerWidget> {
 
   Future<void> _getCurrentLocation() async {
     setState(() => _isLoading = true);
-    
+
     final position = await _locationService.getCurrentLocation();
     if (position != null) {
       setState(() {
@@ -53,7 +53,7 @@ class _MapPickerWidgetState extends State<MapPickerWidget> {
       );
       _getAddressFromCoordinates();
     }
-    
+
     setState(() => _isLoading = false);
   }
 

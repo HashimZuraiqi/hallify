@@ -15,8 +15,7 @@ class VisitRequestsScreen extends StatefulWidget {
   State<VisitRequestsScreen> createState() => _VisitRequestsScreenState();
 }
 
-class _VisitRequestsScreenState extends State<VisitRequestsScreen>
-    with SingleTickerProviderStateMixin {
+class _VisitRequestsScreenState extends State<VisitRequestsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -35,7 +34,7 @@ class _VisitRequestsScreenState extends State<VisitRequestsScreen>
   void _loadVisits() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final visitProvider = Provider.of<VisitProvider>(context, listen: false);
-    
+
     if (authProvider.user != null) {
       visitProvider.loadCustomerVisits(authProvider.user!.id);
     }
@@ -72,23 +71,17 @@ class _VisitRequestsScreenState extends State<VisitRequestsScreen>
                 emptySubMessage: 'Browse halls and schedule your first visit',
               ),
               _VisitsList(
-                visits: visitProvider.customerVisits
-                    .where((v) => v.status == VisitStatus.pending)
-                    .toList(),
+                visits: visitProvider.customerVisits.where((v) => v.status == VisitStatus.pending).toList(),
                 emptyMessage: 'No pending visits',
                 emptySubMessage: 'Your pending visit requests will appear here',
               ),
               _VisitsList(
-                visits: visitProvider.customerVisits
-                    .where((v) => v.status == VisitStatus.approved)
-                    .toList(),
+                visits: visitProvider.customerVisits.where((v) => v.status == VisitStatus.approved).toList(),
                 emptyMessage: 'No approved visits',
                 emptySubMessage: 'Approved visits will appear here',
               ),
               _VisitsList(
-                visits: visitProvider.customerVisits
-                    .where((v) => v.status == VisitStatus.completed)
-                    .toList(),
+                visits: visitProvider.customerVisits.where((v) => v.status == VisitStatus.completed).toList(),
                 emptyMessage: 'No completed visits',
                 emptySubMessage: 'Your visit history will appear here',
               ),
@@ -125,7 +118,7 @@ class _VisitsList extends StatelessWidget {
       onRefresh: () async {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         final visitProvider = Provider.of<VisitProvider>(context, listen: false);
-        
+
         if (authProvider.user != null) {
           await visitProvider.loadCustomerVisits(authProvider.user!.id);
         }
@@ -236,8 +229,7 @@ class _VisitDetailsSheet extends StatelessWidget {
               value: visit.notes,
             ),
           ],
-          if (visit.status == VisitStatus.rejected &&
-              visit.rejectionReason != null) ...[
+          if (visit.status == VisitStatus.rejected && visit.rejectionReason != null) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -323,11 +315,10 @@ class _VisitDetailsSheet extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              final visitProvider =
-                  Provider.of<VisitProvider>(context, listen: false);
+              final visitProvider = Provider.of<VisitProvider>(context, listen: false);
               Navigator.pop(context); // Close dialog
               Navigator.pop(context); // Close bottom sheet
-              
+
               try {
                 await visitProvider.cancelVisitRequest(visit.id);
                 Helpers.showSuccessSnackbar(context, 'Visit cancelled');

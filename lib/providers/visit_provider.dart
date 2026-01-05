@@ -19,19 +19,13 @@ class VisitProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   // Filtered lists
-  List<VisitRequestModel> get pendingOrganizerVisits =>
-      _organizerVisits.where((v) => v.isPending).toList();
-  List<VisitRequestModel> get approvedOrganizerVisits =>
-      _organizerVisits.where((v) => v.isApproved).toList();
-  List<VisitRequestModel> get rejectedOrganizerVisits =>
-      _organizerVisits.where((v) => v.isRejected).toList();
+  List<VisitRequestModel> get pendingOrganizerVisits => _organizerVisits.where((v) => v.isPending).toList();
+  List<VisitRequestModel> get approvedOrganizerVisits => _organizerVisits.where((v) => v.isApproved).toList();
+  List<VisitRequestModel> get rejectedOrganizerVisits => _organizerVisits.where((v) => v.isRejected).toList();
 
-  List<VisitRequestModel> get pendingCustomerVisits =>
-      _customerVisits.where((v) => v.isPending).toList();
-  List<VisitRequestModel> get approvedCustomerVisits =>
-      _customerVisits.where((v) => v.isApproved).toList();
-  List<VisitRequestModel> get completedCustomerVisits =>
-      _customerVisits.where((v) => v.isCompleted).toList();
+  List<VisitRequestModel> get pendingCustomerVisits => _customerVisits.where((v) => v.isPending).toList();
+  List<VisitRequestModel> get approvedCustomerVisits => _customerVisits.where((v) => v.isApproved).toList();
+  List<VisitRequestModel> get completedCustomerVisits => _customerVisits.where((v) => v.isCompleted).toList();
 
   /// Load booked time slots for a hall on a specific date
   Future<void> loadBookedTimeSlots(String hallId, DateTime date) async {

@@ -289,9 +289,7 @@ class _HomeTab extends StatelessWidget {
                   return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: hallProvider.halls.length > 5
-                        ? 5
-                        : hallProvider.halls.length,
+                    itemCount: hallProvider.halls.length > 5 ? 5 : hallProvider.halls.length,
                     itemBuilder: (context, index) {
                       final hall = hallProvider.halls[index];
                       return HallCard(

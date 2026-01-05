@@ -92,9 +92,7 @@ class VisitCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        isOrganizer
-                            ? 'Customer: ${visit.customerName}'
-                            : 'Organizer: ${visit.organizerName}',
+                        isOrganizer ? 'Customer: ${visit.customerName}' : 'Organizer: ${visit.organizerName}',
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 13,

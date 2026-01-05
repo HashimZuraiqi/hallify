@@ -1,9 +1,8 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 /// Default Firebase configuration options for Hallify
-/// 
+///
 /// IMPORTANT: Replace these placeholder values with your actual Firebase config
 /// You can get these values from:
 /// 1. Go to Firebase Console (https://console.firebase.google.com)
