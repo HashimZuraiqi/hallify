@@ -163,11 +163,13 @@ class VisitProvider with ChangeNotifier {
     required DateTime date,
     required String timeSlot,
   }) async {
-    return await _firestoreService.isTimeSlotAvailable(
+    // Return true only when there is a conflict (slot already taken)
+    final isAvailable = await _firestoreService.isTimeSlotAvailable(
       hallId: hallId,
       date: date,
       time: timeSlot,
     );
+    return !isAvailable;
   }
 
   /// Load customer visits (void return - updates provider state)
@@ -178,11 +180,21 @@ class VisitProvider with ChangeNotifier {
 
     try {
       // Use the stream-based method that exists in FirestoreService
-      _firestoreService.getCustomerVisitRequests(customerId).listen((visits) {
-        _customerVisits = visits;
-        _isLoading = false;
-        notifyListeners();
-      });
+      _firestoreService.getCustomerVisitRequests(customerId).listen(
+        (visits) {
+          _customerVisits = visits;
+          _isLoading = false;
+          notifyListeners();
+        },
+        onError: (error) {
+          _errorMessage = error.toString();
+          _isLoading = false;
+          notifyListeners();
+        },
+      );
+      // Ensure loading state clears even if no snapshots are emitted immediately
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
       _isLoading = false;
       _errorMessage = e.toString();
@@ -198,11 +210,20 @@ class VisitProvider with ChangeNotifier {
 
     try {
       // Use the stream-based method that exists in FirestoreService
-      _firestoreService.getOrganizerVisitRequests(organizerId).listen((visits) {
-        _organizerVisits = visits;
-        _isLoading = false;
-        notifyListeners();
-      });
+      _firestoreService.getOrganizerVisitRequests(organizerId).listen(
+        (visits) {
+          _organizerVisits = visits;
+          _isLoading = false;
+          notifyListeners();
+        },
+        onError: (error) {
+          _errorMessage = error.toString();
+          _isLoading = false;
+          notifyListeners();
+        },
+      );
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
       _isLoading = false;
       _errorMessage = e.toString();

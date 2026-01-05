@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
@@ -11,6 +12,7 @@ class ChatProvider with ChangeNotifier {
   List<ConversationModel> _conversations = [];
   List<MessageModel> _messages = [];
   ConversationModel? _currentConversation;
+  StreamSubscription<List<MessageModel>>? _messagesSub;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -20,6 +22,15 @@ class ChatProvider with ChangeNotifier {
   ConversationModel? get currentConversation => _currentConversation;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  /// Find a conversation by id (returns null if missing)
+  ConversationModel? getConversationById(String id) {
+    try {
+      return _conversations.firstWhere((c) => c.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Get total unread count
   int getTotalUnreadCount(String userId) {
@@ -40,10 +51,23 @@ class ChatProvider with ChangeNotifier {
 
   /// Load messages for a conversation
   void loadMessages(String conversationId) {
-    _firestoreService.getMessages(conversationId).listen((messages) {
-      _messages = messages;
-      notifyListeners();
-    });
+    // Reset any existing subscription to avoid duplicate listeners
+    _messagesSub?.cancel();
+    _isLoading = true;
+    notifyListeners();
+
+    _messagesSub = _firestoreService.getMessages(conversationId).listen(
+      (messages) {
+        _messages = messages;
+        _isLoading = false;
+        notifyListeners();
+      },
+      onError: (error) {
+        _errorMessage = error.toString();
+        _isLoading = false;
+        notifyListeners();
+      },
+    );
   }
 
   /// Start or get a conversation
@@ -133,6 +157,7 @@ class ChatProvider with ChangeNotifier {
 
   /// Clear current conversation
   void clearCurrentConversation() {
+    _messagesSub?.cancel();
     _currentConversation = null;
     _messages = [];
     notifyListeners();

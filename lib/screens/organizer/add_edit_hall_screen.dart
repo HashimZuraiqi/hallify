@@ -85,10 +85,6 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
       Helpers.showErrorSnackbar(context, 'Please add at least one image');
       return;
     }
-    if (_latitude == 0 && _longitude == 0) {
-      Helpers.showErrorSnackbar(context, 'Please select a location on the map');
-      return;
-    }
 
     setState(() => _isSaving = true);
 
@@ -239,7 +235,7 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
               ),
               const SizedBox(height: 16),
               // Map Picker
-              _buildSectionTitle('Pin Location on Map'),
+              _buildSectionTitle('Pin Location on Map (Optional)'),
               const SizedBox(height: 8),
               SizedBox(
                 height: 250,

@@ -37,6 +37,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    // Clear chat subscription when leaving the screen
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    chatProvider.clearCurrentConversation();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -66,6 +69,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (authProvider.user == null) return;
 
+    // Resolve the receiver from the current conversation
+    final conversation = chatProvider.getConversationById(widget.conversationId);
+    final receiverId = conversation?.participants
+        .firstWhere((id) => id != authProvider.user!.id, orElse: () => '');
+
+    if (receiverId == null || receiverId.isEmpty) {
+      Helpers.showErrorSnackbar(context, 'Unable to find the recipient for this chat.');
+      return;
+    }
+
     setState(() => _isSending = true);
     _messageController.clear();
 
@@ -75,7 +88,7 @@ class _ChatScreenState extends State<ChatScreen> {
         conversationId: widget.conversationId,
         senderId: authProvider.user!.id,
         senderName: authProvider.user!.name,
-        receiverId: '', // Will be filled by the provider
+        receiverId: receiverId,
         receiverName: widget.otherUserName,
         content: text,
         createdAt: DateTime.now(),
@@ -83,6 +96,9 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       await chatProvider.sendMessage(conversationId: widget.conversationId, message: message);
+
+      // Refresh messages stream to ensure the just-sent message is rendered immediately
+      chatProvider.loadMessages(widget.conversationId);
       
       // Scroll to bottom after sending
       WidgetsBinding.instance.addPostFrameCallback((_) {
