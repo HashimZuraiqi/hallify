@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Sensitive Firebase files (contains API keys)
+# Note: For open-source projects, these should be gitignored
+# and documented in README for contributors to add their own
+google-services.json
+firebase_options.dart
+.env
+.env.*
