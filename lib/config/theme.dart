@@ -67,7 +67,7 @@ class AppTheme {
         fontFamily: 'Poppins',
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: cardColor,
       elevation: 2,
       shadowColor: Colors.black12,
@@ -224,7 +224,7 @@ class AppTheme {
       elevation: 4,
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: primaryColor.withOpacity(0.1),
+      backgroundColor: primaryColor.withValues(alpha: 0.1),
       labelStyle: const TextStyle(
         color: primaryColor,
         fontFamily: 'Poppins',
@@ -269,7 +269,7 @@ class AppTheme {
         fontFamily: 'Poppins',
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: const Color(0xFF16213E),
       elevation: 2,
       shadowColor: Colors.black26,
