@@ -33,13 +33,14 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+    // Mark messages as read when entering chat
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markMessagesAsRead();
+    });
   }
 
   @override
   void dispose() {
-    // Clear chat subscription when leaving the screen
-    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    chatProvider.clearCurrentConversation();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -48,6 +49,15 @@ class _ChatScreenState extends State<ChatScreen> {
   void _loadMessages() {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     chatProvider.loadMessages(widget.conversationId);
+  }
+
+  void _markMessagesAsRead() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    
+    if (authProvider.user != null) {
+      chatProvider.markAsRead(widget.conversationId, authProvider.user!.id);
+    }
   }
 
   void _scrollToBottom() {
@@ -95,9 +105,8 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       await chatProvider.sendMessage(conversationId: widget.conversationId, message: message);
-
-      // Refresh messages stream to ensure the just-sent message is rendered immediately
-      chatProvider.loadMessages(widget.conversationId);
+      
+      // Message will appear automatically via the real-time stream listener
 
       // Scroll to bottom after sending
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -180,11 +189,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                // Scroll to bottom when messages load
+                // Scroll to bottom when new messages arrive
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(
+                  if (_scrollController.hasClients && messages.isNotEmpty) {
+                    _scrollController.animateTo(
                       _scrollController.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
                     );
                   }
                 });

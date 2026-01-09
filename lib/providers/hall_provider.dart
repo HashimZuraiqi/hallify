@@ -156,21 +156,38 @@ class HallProvider with ChangeNotifier {
       // Create hall first to get ID
       final hallId = await _firestoreService.createHall(hall);
 
+      List<String> imageUrls = [];
+      
       // Upload images if provided
       if (imagePaths != null && imagePaths.isNotEmpty) {
         final imageFiles = imagePaths.map((path) => File(path)).toList();
-        final imageUrls = await _storageService.uploadHallImages(
+        imageUrls = await _storageService.uploadHallImages(
           imageFiles: imageFiles,
           hallId: hallId,
         );
 
         // Update hall with image URLs
-        final updatedHall = hall.copyWith(id: hallId, imageUrls: imageUrls);
+        final updatedHall = hall.copyWith(
+          id: hallId, 
+          imageUrls: imageUrls,
+          isAvailable: true,  // Ensure hall is visible
+        );
+        await _firestoreService.updateHall(updatedHall);
+      } else {
+        // Even without images, update the hall with its ID
+        final updatedHall = hall.copyWith(
+          id: hallId,
+          isAvailable: true,
+        );
         await _firestoreService.updateHall(updatedHall);
       }
 
       _isLoading = false;
       notifyListeners();
+      
+      // Refresh the halls list
+      loadAllHalls();
+      
       return hallId;
     } catch (e) {
       _isLoading = false;
@@ -208,6 +225,10 @@ class HallProvider with ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+      
+      // Refresh the halls list
+      loadAllHalls();
+      
       return true;
     } catch (e) {
       _isLoading = false;

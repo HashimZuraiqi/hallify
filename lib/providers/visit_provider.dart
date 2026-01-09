@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import '../models/visit_request_model.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
 
 class VisitProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
+  final NotificationService _notificationService = NotificationService();
 
   List<VisitRequestModel> _customerVisits = [];
   List<VisitRequestModel> _organizerVisits = [];
@@ -78,10 +80,25 @@ class VisitProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Get the visit request first to send notification
+      final visit = _organizerVisits.firstWhere((v) => v.id == visitId);
+      
       await _firestoreService.updateVisitStatus(
         visitId: visitId,
         status: VisitStatus.approved,
       );
+      
+      // Send approval notification to customer
+      final customerToken = await _firestoreService.getUserFcmToken(visit.customerId);
+      if (customerToken != null) {
+        await _notificationService.sendTimeSlotApprovalNotification(
+          customerFcmToken: customerToken,
+          hallName: visit.hallName,
+          visitDate: '${visit.visitDate.year}-${visit.visitDate.month}-${visit.visitDate.day}',
+          visitTime: visit.visitTime,
+        );
+      }
+      
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -99,11 +116,25 @@ class VisitProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Get the visit request first to send notification
+      final visit = _organizerVisits.firstWhere((v) => v.id == visitId);
+      
       await _firestoreService.updateVisitStatus(
         visitId: visitId,
         status: VisitStatus.rejected,
         rejectionReason: reason,
       );
+      
+      // Send rejection notification to customer
+      final customerToken = await _firestoreService.getUserFcmToken(visit.customerId);
+      if (customerToken != null) {
+        await _notificationService.sendTimeSlotRejectionNotification(
+          customerFcmToken: customerToken,
+          hallName: visit.hallName,
+          reason: reason ?? '',
+        );
+      }
+      
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -137,6 +168,19 @@ class VisitProvider with ChangeNotifier {
 
     try {
       await _firestoreService.createVisitRequest(visitRequest);
+      
+      // Send notification to organizer
+      final organizerToken = await _firestoreService.getUserFcmToken(visitRequest.organizerId);
+      if (organizerToken != null) {
+        await _notificationService.sendTimeSlotRequestNotification(
+          organizerFcmToken: organizerToken,
+          customerName: visitRequest.customerName,
+          hallName: visitRequest.hallName,
+          visitDate: '${visitRequest.visitDate.year}-${visitRequest.visitDate.month}-${visitRequest.visitDate.day}',
+          visitTime: visitRequest.visitTime,
+        );
+      }
+      
       _isLoading = false;
       notifyListeners();
     } catch (e) {

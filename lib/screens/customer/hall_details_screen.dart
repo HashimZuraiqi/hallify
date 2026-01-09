@@ -281,7 +281,7 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
                         child: _InfoCard(
                           icon: Icons.attach_money,
                           title: 'Price',
-                          value: '\$${widget.hall.pricePerHour}/hr',
+                          value: '${widget.hall.pricePerHour} JOD/hr',
                         ),
                       ),
                       const SizedBox(width: 12),

@@ -173,24 +173,29 @@ class ChatProvider with ChangeNotifier {
     String? imageUrl,
     MessageModel? message, // Accept pre-built message
   }) async {
-    try {
-      // Use provided message or construct from parameters
-      final msg = message ??
-          MessageModel(
-            id: '',
-            conversationId: conversationId!,
-            senderId: sender!.uid,
-            senderName: sender.name,
-            receiverId: receiverId!,
-            receiverName: receiverName!,
-            content: content!,
-            imageUrl: imageUrl,
-            createdAt: DateTime.now(),
-          );
+    // Use provided message or construct from parameters
+    final msg = message ??
+        MessageModel(
+          id: '',
+          conversationId: conversationId!,
+          senderId: sender!.uid,
+          senderName: sender.name,
+          receiverId: receiverId!,
+          receiverName: receiverName!,
+          content: content!,
+          imageUrl: imageUrl,
+          createdAt: DateTime.now(),
+        );
 
+    // Optimistic UI update - add message to local list immediately
+    // This ensures the message appears instantly before Firestore confirms
+    _messages = [..._messages, msg];
+    notifyListeners();
+
+    try {
       await _firestoreService.sendMessage(msg);
 
-      // Send push notification
+      // Send push notification to receiver only (not to sender)
       final receiverToken = await _firestoreService.getUserFcmToken(msg.receiverId);
       if (receiverToken != null) {
         await _notificationService.sendMessageNotification(
@@ -202,6 +207,8 @@ class ChatProvider with ChangeNotifier {
 
       return true;
     } catch (e) {
+      // Remove the optimistic message on error
+      _messages = _messages.where((m) => m.createdAt != msg.createdAt).toList();
       _errorMessage = e.toString();
       notifyListeners();
       return false;

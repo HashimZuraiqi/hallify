@@ -55,28 +55,20 @@ class AppConstants {
     'Restrooms',
   ];
 
-  // Cities (can be expanded)
+  // Governorates/Cities of Jordan
   static const List<String> cities = [
-    'New York',
-    'Los Angeles',
-    'Chicago',
-    'Houston',
-    'Phoenix',
-    'Philadelphia',
-    'San Antonio',
-    'San Diego',
-    'Dallas',
-    'San Jose',
-    'Austin',
-    'Jacksonville',
-    'Fort Worth',
-    'Columbus',
-    'Charlotte',
-    'San Francisco',
-    'Indianapolis',
-    'Seattle',
-    'Denver',
-    'Washington DC',
+    'Amman',
+    'Zarqa',
+    'Irbid',
+    'Aqaba',
+    'Salt',
+    'Mafraq',
+    'Jerash',
+    'Madaba',
+    'Ajloun',
+    'Karak',
+    'Tafilah',
+    'Ma\'an',
   ];
 
   // Capacity Options
@@ -105,9 +97,9 @@ class AppConstants {
   // Pagination
   static const int itemsPerPage = 10;
 
-  // Map Settings
-  static const double defaultLatitude = 40.7128;
-  static const double defaultLongitude = -74.0060;
+  // Map Settings - Amman, Jordan coordinates
+  static const double defaultLatitude = 31.9454;
+  static const double defaultLongitude = 35.9284;
   static const double defaultZoom = 12.0;
 
   // Animation Durations

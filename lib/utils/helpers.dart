@@ -41,8 +41,8 @@ class Helpers {
     }
   }
 
-  /// Format currency
-  static String formatCurrency(double amount, {String symbol = '\$'}) {
+  /// Format currency (default JOD for Jordan)
+  static String formatCurrency(double amount, {String symbol = 'JOD '}) {
     return '$symbol${NumberFormat('#,##0.00').format(amount)}';
   }
 

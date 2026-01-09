@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../config/theme.dart';
 import '../../models/hall_model.dart';
 import '../../providers/auth_provider.dart';
@@ -11,7 +13,6 @@ import '../../utils/helpers.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/map_picker_widget.dart';
-import '../../widgets/loading_widget.dart';
 
 class AddEditHallScreen extends StatefulWidget {
   final HallModel? hall;
@@ -29,12 +30,13 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
   final _addressController = TextEditingController();
   final _capacityController = TextEditingController();
   final _priceController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   HallType _selectedType = HallType.wedding;
   String? _selectedCity;
   List<String> _selectedFeatures = [];
   List<String> _imageUrls = [];
-  List<String> _newImagePaths = [];
+  List<File> _newImageFiles = [];
   double _latitude = 0;
   double _longitude = 0;
   bool _isSaving = false;
@@ -57,7 +59,8 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
     _capacityController.text = hall.capacity.toString();
     _priceController.text = hall.pricePerHour.toString();
     _selectedType = hall.type;
-    _selectedCity = hall.city;
+    // Only set city if it exists in the current list, otherwise leave null
+    _selectedCity = AppConstants.cities.contains(hall.city) ? hall.city : null;
     _selectedFeatures = List.from(hall.features);
     _imageUrls = List.from(hall.imageUrls);
     _latitude = hall.latitude;
@@ -77,10 +80,10 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
   Future<void> _saveHall() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCity == null) {
-      Helpers.showErrorSnackbar(context, 'Please select a city');
+      Helpers.showErrorSnackbar(context, 'Please select a governorate');
       return;
     }
-    if (_imageUrls.isEmpty && _newImagePaths.isEmpty) {
+    if (_imageUrls.isEmpty && _newImageFiles.isEmpty) {
       Helpers.showErrorSnackbar(context, 'Please add at least one image');
       return;
     }
@@ -117,14 +120,18 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
       if (_isEditing) {
         await hallProvider.updateHall(
           hall,
-          newImagePaths: _newImagePaths.isNotEmpty ? _newImagePaths : null,
+          newImagePaths: _newImageFiles.isNotEmpty 
+            ? _newImageFiles.map((f) => f.path).toList() 
+            : null,
         );
         if (!mounted) return;
         Helpers.showSuccessSnackbar(context, 'Hall updated successfully');
       } else {
         await hallProvider.createHall(
           hall,
-          imagePaths: _newImagePaths,
+          imagePaths: _newImageFiles.isNotEmpty 
+            ? _newImageFiles.map((f) => f.path).toList() 
+            : null,
         );
         if (!mounted) return;
         Helpers.showSuccessSnackbar(context, 'Hall created successfully');
@@ -216,7 +223,7 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
               DropdownButtonFormField<String>(
                 value: _selectedCity,
                 decoration: const InputDecoration(
-                  labelText: 'City',
+                  labelText: 'Governorate',
                   prefixIcon: Icon(Icons.location_city),
                 ),
                 items: AppConstants.cities.map((city) {
@@ -227,7 +234,7 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please select a city';
+                    return 'Please select a governorate';
                   }
                   return null;
                 },
@@ -274,7 +281,7 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
                   Expanded(
                     child: CustomTextField(
                       controller: _priceController,
-                      label: 'Price/Hour (\$)',
+                      label: 'Price/Hour (JOD)',
                       prefixIcon: Icons.attach_money,
                       keyboardType: TextInputType.number,
                       validator: Validators.validatePrice,
@@ -336,117 +343,55 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
   }
 
   Widget _buildImagesSection() {
-    final allImages = [..._imageUrls, ..._newImagePaths];
-
     return Column(
       children: [
         // Image Grid
-        if (allImages.isNotEmpty)
+        if (_imageUrls.isNotEmpty || _newImageFiles.isNotEmpty)
           SizedBox(
             height: 120,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: allImages.length + 1,
+              itemCount: _imageUrls.length + _newImageFiles.length + 1,
               itemBuilder: (context, index) {
-                if (index == allImages.length) {
+                // Add button at the end
+                if (index == _imageUrls.length + _newImageFiles.length) {
                   return _AddImageButton(
                     onTap: () => _showImagePicker(),
                   );
                 }
 
-                final image = allImages[index];
-                final isUrl = image.startsWith('http');
+                // Existing images from URL
+                if (index < _imageUrls.length) {
+                  return _ImageTile(
+                    isUrl: true,
+                    imageUrl: _imageUrls[index],
+                    onRemove: () {
+                      setState(() => _imageUrls.removeAt(index));
+                    },
+                  );
+                }
 
-                return Container(
-                  width: 120,
-                  margin: const EdgeInsets.only(right: 12),
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: isUrl
-                            ? CachedNetworkImage(
-                                imageUrl: image,
-                                width: 120,
-                                height: 120,
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) => const ShimmerLoading(
-                                  width: 120,
-                                  height: 120,
-                                ),
-                              )
-                            : Image.asset(
-                                image,
-                                width: 120,
-                                height: 120,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.image),
-                                ),
-                              ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (isUrl) {
-                                _imageUrls.remove(image);
-                              } else {
-                                _newImagePaths.remove(image);
-                              }
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                // New images from files
+                final fileIndex = index - _imageUrls.length;
+                return _ImageTile(
+                  isUrl: false,
+                  imageFile: _newImageFiles[fileIndex],
+                  onRemove: () {
+                    setState(() => _newImageFiles.removeAt(fileIndex));
+                  },
                 );
               },
             ),
           )
         else
-          GestureDetector(
+          _AddImageButton(
             onTap: () => _showImagePicker(),
-            child: Container(
-              height: 150,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.grey[300]!,
-                  style: BorderStyle.solid,
-                ),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Add Images',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
+        const SizedBox(height: 8),
+        Text(
+          '${_imageUrls.length + _newImageFiles.length} image(s) selected (max 10)',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
       ],
     );
   }
@@ -467,10 +412,7 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
               title: const Text('Take Photo'),
               onTap: () {
                 Navigator.pop(context);
-                // Implement camera picker
-                setState(() {
-                  _newImagePaths.add('assets/images/placeholder.png');
-                });
+                _pickImageFromCamera();
               },
             ),
             ListTile(
@@ -478,14 +420,130 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
               title: const Text('Choose from Gallery'),
               onTap: () {
                 Navigator.pop(context);
-                // Implement gallery picker
-                setState(() {
-                  _newImagePaths.add('assets/images/placeholder.png');
-                });
+                _pickImagesFromGallery();
               },
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _newImageFiles.add(File(pickedFile.path));
+        });
+        if (!mounted) return;
+        Helpers.showSuccessSnackbar(context, 'Photo added successfully');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Helpers.showErrorSnackbar(context, 'Failed to pick photo from camera: $e');
+    }
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    try {
+      final pickedFiles = await _imagePicker.pickMultiImage(
+        imageQuality: 80,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+
+      if (pickedFiles.isNotEmpty) {
+        final remainingSlots = 10 - (_imageUrls.length + _newImageFiles.length);
+        final filesToAdd = pickedFiles.take(remainingSlots).map((xFile) => File(xFile.path)).toList();
+        
+        setState(() {
+          _newImageFiles.addAll(filesToAdd);
+        });
+        
+        if (!mounted) return;
+        Helpers.showSuccessSnackbar(
+          context, 
+          '${filesToAdd.length} photo(s) added successfully'
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Helpers.showErrorSnackbar(context, 'Failed to pick photos from gallery: $e');
+    }
+  }
+}
+
+class _ImageTile extends StatelessWidget {
+  final bool isUrl;
+  final String? imageUrl;
+  final File? imageFile;
+  final VoidCallback? onRemove;
+
+  const _ImageTile({
+    required this.isUrl,
+    this.imageUrl,
+    this.imageFile,
+    this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      height: 120,
+      margin: const EdgeInsets.only(right: 12),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: isUrl
+                ? CachedNetworkImage(
+                    imageUrl: imageUrl!,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.broken_image, color: Colors.grey),
+                      );
+                    },
+                  )
+                : Image.file(
+                    imageFile!,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+          ),
+          if (onRemove != null)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                onTap: onRemove,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

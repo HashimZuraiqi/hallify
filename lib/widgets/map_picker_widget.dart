@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../config/theme.dart';
 import '../services/location_service.dart';
+import '../utils/constants.dart';
 
 class MapPickerWidget extends StatefulWidget {
   final double? initialLatitude;
@@ -25,7 +26,8 @@ class _MapPickerWidgetState extends State<MapPickerWidget> {
   GoogleMapController? _mapController;
   final LocationService _locationService = LocationService();
 
-  LatLng _selectedPosition = const LatLng(40.7128, -74.0060); // Default: NYC
+  // Default: Amman, Jordan
+  LatLng _selectedPosition = const LatLng(AppConstants.defaultLatitude, AppConstants.defaultLongitude);
   String? _selectedAddress;
   bool _isLoading = false;
 

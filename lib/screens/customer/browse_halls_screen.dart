@@ -233,7 +233,7 @@ class _BrowseHallsScreenState extends State<BrowseHallsScreen> {
           const SizedBox(height: 20),
           // Price Range
           Text(
-            'Price Range: \$${_priceRange.start.toInt()} - \$${_priceRange.end.toInt()}/hr',
+            'Price Range: ${_priceRange.start.toInt()} - ${_priceRange.end.toInt()} JOD/hr',
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
           RangeSlider(
@@ -242,8 +242,8 @@ class _BrowseHallsScreenState extends State<BrowseHallsScreen> {
             max: 10000,
             divisions: 100,
             labels: RangeLabels(
-              '\$${_priceRange.start.toInt()}',
-              '\$${_priceRange.end.toInt()}',
+              '${_priceRange.start.toInt()} JOD',
+              '${_priceRange.end.toInt()} JOD',
             ),
             onChanged: (values) {
               setState(() => _priceRange = values);

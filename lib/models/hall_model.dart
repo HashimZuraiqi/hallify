@@ -200,8 +200,8 @@ class HallModel {
   }
 
   /// Get formatted price
-  String get formattedPricePerHour => '\$${pricePerHour.toStringAsFixed(0)}/hr';
-  String get formattedPricePerDay => '\$${pricePerDay.toStringAsFixed(0)}/day';
+  String get formattedPricePerHour => '${pricePerHour.toStringAsFixed(0)} JOD/hr';
+  String get formattedPricePerDay => '${pricePerDay.toStringAsFixed(0)} JOD/day';
 
   @override
   String toString() {
