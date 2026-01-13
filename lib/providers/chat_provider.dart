@@ -3,11 +3,11 @@ import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
-import '../services/notification_service.dart';
+import '../services/in_app_notification_service.dart';
 
 class ChatProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
-  final NotificationService _notificationService = NotificationService();
+  final InAppNotificationService _notificationService = InAppNotificationService();
 
   List<ConversationModel> _conversations = [];
   List<MessageModel> _messages = [];
@@ -195,14 +195,15 @@ class ChatProvider with ChangeNotifier {
     try {
       await _firestoreService.sendMessage(msg);
 
-      // Send push notification to receiver only (not to sender)
-      final receiverToken = await _firestoreService.getUserFcmToken(msg.receiverId);
-      if (receiverToken != null) {
+      // Send in-app notification to receiver
+      try {
         await _notificationService.sendMessageNotification(
-          receiverFcmToken: receiverToken,
+          receiverId: msg.receiverId,
           senderName: msg.senderName,
           message: msg.content,
         );
+      } catch (e) {
+        print('Warning: Failed to send chat notification: $e');
       }
 
       return true;

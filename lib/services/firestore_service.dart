@@ -3,6 +3,7 @@ import '../models/hall_model.dart';
 import '../models/visit_request_model.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
+import '../services/availability_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -13,6 +14,9 @@ class FirestoreService {
   CollectionReference get _visitsCollection => _firestore.collection('visitRequests');
   CollectionReference get _conversationsCollection => _firestore.collection('conversations');
   CollectionReference get _messagesCollection => _firestore.collection('messages');
+  
+  // Services
+  final AvailabilityService _availabilityService = AvailabilityService();
 
   // ==================== HALL OPERATIONS ====================
 
@@ -60,11 +64,15 @@ class FirestoreService {
 
   /// Get all halls (for customers)
   Stream<List<HallModel>> getAllHalls() {
+    print('📡 Firestore query: halls where isAvailable=true');
     return _hallsCollection
         .where('isAvailable', isEqualTo: true)
-        .orderBy('createdAt', descending: true)
+        // .orderBy('createdAt', descending: true)  // TEMPORARILY DISABLED - needs index
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => HallModel.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          print('📦 Firestore returned ${snapshot.docs.length} documents');
+          return snapshot.docs.map((doc) => HallModel.fromFirestore(doc)).toList();
+        });
   }
 
   /// Get halls by organizer ID
@@ -136,25 +144,60 @@ class FirestoreService {
 
   // ==================== VISIT REQUEST OPERATIONS ====================
 
-  /// Create a visit request
+  /// Create a visit request with transaction to prevent double booking (FREE)
+  /// Also enforces ONE pending/approved request per user per hall
   Future<String> createVisitRequest(VisitRequestModel visit) async {
     try {
-      // Check if time slot is available
-      final isAvailable = await isTimeSlotAvailable(
-        hallId: visit.hallId,
-        date: visit.visitDate,
-        time: visit.visitTime,
-      );
+      // Use Firestore transaction to prevent race conditions
+      final String? visitId = await _firestore.runTransaction<String?>((transaction) async {
+        // 1. Check if THIS USER already has a pending/approved request for this hall
+        final userExistingSnapshot = await _visitsCollection
+            .where('hallId', isEqualTo: visit.hallId)
+            .where('customerId', isEqualTo: visit.customerId)
+            .where('status', whereIn: ['pending', 'approved']).get();
 
-      if (!isAvailable) {
-        throw Exception('This time slot is not available');
+        if (userExistingSnapshot.docs.isNotEmpty) {
+          final existing = VisitRequestModel.fromFirestore(userExistingSnapshot.docs.first);
+          throw Exception(
+            'You already have a booking for this hall on ${_formatDate(existing.visitDate)} at ${existing.visitTime}. '
+            'Please wait for approval or cancel your existing request.'
+          );
+        }
+
+        // 2. Check if ANY OTHER USER has booked the same time slot
+        final timeSlotSnapshot = await _visitsCollection
+            .where('hallId', isEqualTo: visit.hallId)
+            .where('visitDate', isEqualTo: Timestamp.fromDate(visit.visitDate))
+            .where('status', whereIn: ['pending', 'approved']).get();
+
+        // Check for time slot overlap
+        for (var doc in timeSlotSnapshot.docs) {
+          final existing = VisitRequestModel.fromFirestore(doc);
+          if (existing.visitTime == visit.visitTime) {
+            throw Exception('This time slot is already booked by another user');
+          }
+        }
+
+        // 3. No conflict - create visit request
+        final newDocRef = _visitsCollection.doc();
+        transaction.set(newDocRef, visit.toMap());
+        return newDocRef.id;
+      });
+
+      if (visitId == null) {
+        throw Exception('Failed to create visit request');
       }
 
-      final docRef = await _visitsCollection.add(visit.toMap());
-      return docRef.id;
+      return visitId;
     } catch (e) {
-      throw Exception('Failed to create visit request: $e');
+      throw Exception('${e.toString().replaceAll('Exception: ', '')}');
     }
+  }
+
+  /// Helper to format date for error messages
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   /// Update visit request status
@@ -233,6 +276,26 @@ class FirestoreService {
       return true;
     } catch (e) {
       return true; // Allow booking if check fails
+    }
+  }
+
+  /// Get user's existing pending or approved visit for a specific hall
+  Future<VisitRequestModel?> getUserPendingVisitForHall({
+    required String hallId,
+    required String customerId,
+  }) async {
+    try {
+      final snapshot = await _visitsCollection
+          .where('hallId', isEqualTo: hallId)
+          .where('customerId', isEqualTo: customerId)
+          .where('status', whereIn: ['pending', 'approved'])
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) return null;
+      return VisitRequestModel.fromFirestore(snapshot.docs.first);
+    } catch (e) {
+      return null;
     }
   }
 
@@ -379,5 +442,76 @@ class FirestoreService {
     } catch (e) {
       return null;
     }
+  }
+
+  // ==================== HALL SLOT LOCKING (RACE-CONDITION SAFE) ====================
+
+  /// Approve visit and lock slot atomically (prevents race conditions)
+  Future<void> approveVisitAndLockSlot(VisitRequestModel visit) async {
+    final dateStr = _formatDate(visit.visitDate);
+    final timeStr = visit.visitTime.split('-')[0].trim(); // Get start time
+    final slotId = '${visit.hallId}_${dateStr}_$timeStr';
+    
+    final slotRef = _firestore.collection('hallSlots').doc(slotId);
+    final visitRef = _visitsCollection.doc(visit.id);
+
+    await _firestore.runTransaction((transaction) async {
+      // 1. Check if slot already exists (atomic check)
+      final slotDoc = await transaction.get(slotRef);
+      if (slotDoc.exists) {
+        throw Exception('This time slot is already booked by another user');
+      }
+
+      // 2. Create slot lock atomically
+      transaction.set(slotRef, {
+        'hallId': visit.hallId,
+        'date': dateStr,
+        'time': timeStr,
+        'booked': true,
+        'visitId': visit.id,
+        'organizerId': visit.organizerId,
+        'customerId': visit.customerId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 3. Update visit status
+      transaction.update(visitRef, {
+        'status': 'approved',
+        'approvedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// Free slot when visit is cancelled or rejected (delete slot document)
+  Future<void> freeSlotByVisitId(String visitId) async {
+    // Find slot with this visitId and delete it
+    final snapshot = await _firestore
+        .collection('hallSlots')
+        .where('visitId', isEqualTo: visitId)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      await snapshot.docs.first.reference.delete();
+    }
+  }
+
+  /// Get booked slots for a hall and date
+  Future<List<String>> getBookedTimesForDate({
+    required String hallId,
+    required DateTime date,
+  }) async {
+    final dateStr = _formatDate(date);
+    final snapshot = await _firestore
+        .collection('hallSlots')
+        .where('hallId', isEqualTo: hallId)
+        .where('date', isEqualTo: dateStr)
+        .where('booked', isEqualTo: true)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => (doc.data()['time'] as String?) ?? '')
+        .where((time) => time.isNotEmpty)
+        .toList();
   }
 }

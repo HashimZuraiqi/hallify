@@ -26,7 +26,7 @@ android {
         applicationId = "com.example.hallify"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion  // Android 5.0 (Lollipop) - supports most phones
+        minSdk = flutter.minSdkVersion  // Android 5.0 (Lollipop) - supports 94% of devices
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

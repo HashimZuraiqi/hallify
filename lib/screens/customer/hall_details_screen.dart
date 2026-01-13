@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -31,9 +33,43 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
   String? _selectedTimeSlot;
   final PageController _pageController = PageController();
   GoogleMapController? _mapController;
+  StreamSubscription<QuerySnapshot>? _visitListener;
+  VisitRequestModel? _currentUserVisit;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupVisitListener();
+  }
+
+  void _setupVisitListener() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    // Real-time listener for user's visit to THIS hall
+    _visitListener = FirebaseFirestore.instance
+        .collection('visitRequests')
+        .where('hallId', isEqualTo: widget.hall.id)
+        .where('customerId', isEqualTo: authProvider.user!.id)
+        .where('status', whereIn: ['pending', 'approved'])
+        .orderBy('createdAt', descending: true) // Get latest request
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          if (snapshot.docs.isNotEmpty) {
+            _currentUserVisit = VisitRequestModel.fromFirestore(snapshot.docs.first);
+          } else {
+            _currentUserVisit = null;
+          }
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _visitListener?.cancel();
     _pageController.dispose();
     _mapController?.dispose();
     super.dispose();
@@ -393,41 +429,200 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Chat Button
-            Container(
+      bottomNavigationBar: Consumer<AuthProvider>(
+        builder: (context, authProvider, _) {
+          if (authProvider.user == null) {
+            return const SizedBox.shrink();
+          }
+
+          // Use real-time listener data instead of provider
+          final existingVisit = _currentUserVisit;
+
+          if (existingVisit != null) {
+            // Show existing visit status
+            return Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.primaryColor),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.orange.shade50,
+                border: Border(top: BorderSide(color: Colors.orange.shade200)),
               ),
-              child: IconButton(
-                onPressed: _startChat,
-                icon: const Icon(Icons.chat_outlined, color: AppTheme.primaryColor),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.pending_actions, color: Colors.orange.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        existingVisit.status == VisitStatus.pending
+                            ? 'Pending Visit Request'
+                            : 'Approved Visit',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${existingVisit.visitDate.day}/${existingVisit.visitDate.month}/${existingVisit.visitDate.year} at ${existingVisit.visitTime}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                  // PENDING VISITS
+                  if (existingVisit.status == VisitStatus.pending)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              _showBookingDialog();
+                            },
+                            icon: const Icon(Icons.edit, size: 18),
+                            label: const Text('Edit Visit'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              side: const BorderSide(color: Colors.orange),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _cancelVisit(existingVisit.id),
+                            icon: const Icon(Icons.close, size: 18),
+                            label: const Text('Cancel Request'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  
+                  // APPROVED VISITS
+                  if (existingVisit.status == VisitStatus.approved)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _startChat,
+                            icon: const Icon(Icons.chat, size: 18),
+                            label: const Text('Chat with Organizer'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _cancelVisit(existingVisit.id),
+                            icon: const Icon(Icons.close, size: 18),
+                            label: const Text('Cancel Visit'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                            icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
+                            label: const Text('Edit Visit', style: TextStyle(color: AppTheme.primaryColor)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppTheme.primaryColor),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Cancel Request?'),
+                                  content: const Text('Are you sure you want to cancel this visit request?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('No'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: const Text('Yes', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                final visitProvider = Provider.of<VisitProvider>(context, listen: false);
+                                await visitProvider.cancelVisitRequest(existingVisit.id);
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Visit request cancelled')),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.cancel, color: Colors.red),
+                            label: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
+            );
+          }
+
+          // No existing visit - show normal schedule button
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            // Book Visit Button
-            Expanded(
-              child: GradientButton(
-                text: 'Schedule Visit',
-                onPressed: _showBookingDialog,
-              ),
+            child: Row(
+              children: [
+                // Chat Button
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppTheme.primaryColor),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    onPressed: _startChat,
+                    icon: const Icon(Icons.chat_outlined, color: AppTheme.primaryColor),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Book Visit Button
+                Expanded(
+                  child: GradientButton(
+                    text: 'Schedule Visit',
+                    onPressed: _showBookingDialog,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -542,6 +737,28 @@ class _BookingBottomSheetState extends State<_BookingBottomSheet> {
     _focusedDay = widget.selectedDate;
     _selectedDay = widget.selectedDate;
     _selectedTimeSlot = widget.selectedTimeSlot;
+    
+    // Check if editing existing visit and pre-fill data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final visitProvider = Provider.of<VisitProvider>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      if (authProvider.user != null) {
+        final existingVisit = visitProvider.customerVisits.where((v) =>
+            v.hallId == widget.hall.id &&
+            (v.status == VisitStatus.pending || v.status == VisitStatus.approved)
+        ).firstOrNull;
+        
+        if (existingVisit != null) {
+          setState(() {
+            _selectedDay = existingVisit.visitDate;
+            _focusedDay = existingVisit.visitDate;
+            _selectedTimeSlot = existingVisit.visitTime;
+            _notesController.text = existingVisit.message ?? '';
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -564,6 +781,18 @@ class _BookingBottomSheetState extends State<_BookingBottomSheet> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Check if user is editing an existing visit
+      final existingVisit = visitProvider.customerVisits.where((v) =>
+          v.hallId == widget.hall.id &&
+          (v.status == VisitStatus.pending || v.status == VisitStatus.approved)
+      ).firstOrNull;
+
+      // If editing, cancel the old visit first
+      if (existingVisit != null) {
+        await visitProvider.cancelVisitRequest(existingVisit.id);
+        if (!mounted) return;
+      }
+
       // Check for time slot conflicts
       final hasConflict = await visitProvider.checkTimeSlotConflict(
         hallId: widget.hall.id,
@@ -601,11 +830,21 @@ class _BookingBottomSheetState extends State<_BookingBottomSheet> {
 
       await visitProvider.createVisitRequest(visitRequest);
 
+      // Reload visits to refresh UI immediately
+      if (authProvider.user != null) {
+        await visitProvider.loadCustomerVisits(authProvider.user!.id);
+      }
+      
+      // Small delay to ensure Firestore has propagated
+      await Future.delayed(const Duration(milliseconds: 300));
+
       if (!mounted) return;
       Navigator.pop(context);
       Helpers.showSuccessSnackbar(context, 'Visit request submitted!');
     } catch (e) {
-      Helpers.showErrorSnackbar(context, 'Failed to submit request');
+      // Show actual error message from transaction or other errors
+      final errorMessage = e.toString().replaceAll('Exception: ', '');
+      Helpers.showErrorSnackbar(context, errorMessage);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

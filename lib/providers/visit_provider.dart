@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import '../models/visit_request_model.dart';
 import '../services/firestore_service.dart';
-import '../services/notification_service.dart';
+import '../services/in_app_notification_service.dart';
 
 class VisitProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
-  final NotificationService _notificationService = NotificationService();
+  final InAppNotificationService _notificationService = InAppNotificationService();
 
   List<VisitRequestModel> _customerVisits = [];
   List<VisitRequestModel> _organizerVisits = [];
@@ -56,10 +56,27 @@ class VisitProvider with ChangeNotifier {
   /// Mark visit as completed
   Future<bool> completeVisit(String visitId) async {
     try {
+      // Get the visit first to send notification
+      final visit = _organizerVisits.firstWhere((v) => v.id == visitId,
+        orElse: () => _customerVisits.firstWhere((v) => v.id == visitId));
+      
       await _firestoreService.updateVisitStatus(
         visitId: visitId,
         status: VisitStatus.completed,
       );
+      
+      // Send completion notification to customer (optional, nice touch)
+      try {
+        await _notificationService.sendVisitCompletedNotification(
+          customerId: visit.customerId,
+          hallName: visit.hallName,
+          visitId: visit.id,
+          hallId: visit.hallId,
+        );
+      } catch (e) {
+        print('Warning: Failed to send completion notification: $e');
+      }
+      
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -80,24 +97,21 @@ class VisitProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Get the visit request first to send notification
+      // Get the visit request first
       final visit = _organizerVisits.firstWhere((v) => v.id == visitId);
       
-      await _firestoreService.updateVisitStatus(
-        visitId: visitId,
-        status: VisitStatus.approved,
-      );
+      // Use transaction to approve and lock slot
+      await _firestoreService.approveVisitAndLockSlot(visit);
       
-      // Send approval notification to customer
-      final customerToken = await _firestoreService.getUserFcmToken(visit.customerId);
-      if (customerToken != null) {
-        await _notificationService.sendTimeSlotApprovalNotification(
-          customerFcmToken: customerToken,
-          hallName: visit.hallName,
-          visitDate: '${visit.visitDate.year}-${visit.visitDate.month}-${visit.visitDate.day}',
-          visitTime: visit.visitTime,
-        );
-      }
+      // Send approval notification to customer (in-app, no FCM needed)
+      await _notificationService.sendTimeSlotApprovalNotification(
+        customerFcmToken: visit.customerId, // Now treated as userId
+        hallName: visit.hallName,
+        visitDate: '${visit.visitDate.year}-${visit.visitDate.month}-${visit.visitDate.day}',
+        visitTime: visit.visitTime,
+        visitId: visit.id,
+        hallId: visit.hallId,
+      );
       
       _isLoading = false;
       notifyListeners();
@@ -125,15 +139,14 @@ class VisitProvider with ChangeNotifier {
         rejectionReason: reason,
       );
       
-      // Send rejection notification to customer
-      final customerToken = await _firestoreService.getUserFcmToken(visit.customerId);
-      if (customerToken != null) {
-        await _notificationService.sendTimeSlotRejectionNotification(
-          customerFcmToken: customerToken,
-          hallName: visit.hallName,
-          reason: reason ?? '',
-        );
-      }
+      // Send rejection notification to customer (in-app, no FCM needed)
+      await _notificationService.sendTimeSlotRejectionNotification(
+        customerFcmToken: visit.customerId, // Now treated as userId
+        hallName: visit.hallName,
+        reason: reason ?? 'No reason provided',
+        visitId: visit.id,
+        hallId: visit.hallId,
+      );
       
       _isLoading = false;
       notifyListeners();
@@ -152,6 +165,10 @@ class VisitProvider with ChangeNotifier {
         visitId: visitId,
         status: VisitStatus.cancelled,
       );
+      
+      // Free the availability slot if it was approved/booked
+      await _firestoreService.freeSlotByVisitId(visitId);
+      
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -167,19 +184,18 @@ class VisitProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestoreService.createVisitRequest(visitRequest);
+      final visitId = await _firestoreService.createVisitRequest(visitRequest);
       
-      // Send notification to organizer
-      final organizerToken = await _firestoreService.getUserFcmToken(visitRequest.organizerId);
-      if (organizerToken != null) {
-        await _notificationService.sendTimeSlotRequestNotification(
-          organizerFcmToken: organizerToken,
-          customerName: visitRequest.customerName,
-          hallName: visitRequest.hallName,
-          visitDate: '${visitRequest.visitDate.year}-${visitRequest.visitDate.month}-${visitRequest.visitDate.day}',
-          visitTime: visitRequest.visitTime,
-        );
-      }
+      // Send notification to organizer (in-app, no FCM needed)
+      await _notificationService.sendTimeSlotRequestNotification(
+        organizerFcmToken: visitRequest.organizerId, // Now treated as userId
+        customerName: visitRequest.customerName,
+        hallName: visitRequest.hallName,
+        visitDate: '${visitRequest.visitDate.year}-${visitRequest.visitDate.month}-${visitRequest.visitDate.day}',
+        visitTime: visitRequest.visitTime,
+        visitId: visitId,
+        hallId: visitRequest.hallId,
+      );
       
       _isLoading = false;
       notifyListeners();

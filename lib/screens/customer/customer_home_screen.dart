@@ -32,20 +32,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   void _initializeData() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final hallProvider = Provider.of<HallProvider>(context, listen: false);
-    final visitProvider = Provider.of<VisitProvider>(context, listen: false);
-    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final hallProvider = Provider.of<HallProvider>(context, listen: false);
+      final visitProvider = Provider.of<VisitProvider>(context, listen: false);
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-    // Load halls
-    hallProvider.loadAllHalls();
-    hallProvider.loadFeaturedHalls();
+      // Load halls
+      hallProvider.loadAllHalls();
+      hallProvider.loadFeaturedHalls();
 
-    // Load visit requests for customer
-    if (authProvider.currentUser != null) {
-      visitProvider.loadCustomerVisits(authProvider.currentUser!.uid);
-      chatProvider.loadConversations(authProvider.currentUser!.uid);
-    }
+      // Load visit requests for customer
+      if (authProvider.currentUser != null) {
+        visitProvider.loadCustomerVisits(authProvider.currentUser!.uid);
+        chatProvider.loadConversations(authProvider.currentUser!.uid);
+      }
+    });
   }
 
   @override
@@ -197,6 +199,81 @@ class _HomeTab extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 32),
+              
+              // Pending Visits Section
+              Consumer<VisitProvider>(
+                builder: (context, visitProvider, _) {
+                  final pendingVisits = visitProvider.pendingCustomerVisits;
+                  
+                  if (pendingVisits.isEmpty) {
+                    return const SizedBox.shrink(); // Hide if no pending visits
+                  }
+                  
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Your Pending Requests',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ...pendingVisits.map((visit) => Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.orange.shade100,
+                            child: Icon(Icons.pending, color: Colors.orange),
+                          ),
+                          title: Text(visit.hallName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                            '${visit.visitDate.day}/${visit.visitDate.month}/${visit.visitDate.year} at ${visit.visitTime}\n⏳ Waiting for approval',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          isThreeLine: true,
+                          trailing: IconButton(
+                            icon: const Icon(Icons.cancel, color: Colors.red),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Cancel Request?'),
+                                  content: const Text('Are you sure you want to cancel this visit request?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('No'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: const Text('Yes', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              
+                              if (confirm == true) {
+                                await visitProvider.cancelVisitRequest(visit.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Visit request cancelled')),
+                                  );
+                                }
+                              }
+                            },
+                            tooltip: 'Cancel Request',
+                          ),
+                        ),
+                      )).toList(),
+                      const SizedBox(height: 24),
+                    ],
+                  );
+                },
+              ),
+              
               const SizedBox(height: 32),
               // Featured Halls
               Row(

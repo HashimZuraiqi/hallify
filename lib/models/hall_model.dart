@@ -13,11 +13,13 @@ class HallModel {
   final double pricePerHour;
   final double pricePerDay;
   final List<String> features;
-  final List<String> imageUrls;
+  final List<String> imageUrls; // DEPRECATED: Use imageBase64
+  final List<String> imageBase64; // Base64 encoded images for Firestore
   final String city;
   final String address;
-  final double latitude;
-  final double longitude;
+  final GeoPoint? location; // Firestore GeoPoint for location
+  final double latitude; // Computed from location or legacy
+  final double longitude; // Computed from location or legacy
   final bool isAvailable;
   final double rating;
   final int totalReviews;
@@ -39,46 +41,59 @@ class HallModel {
     required this.pricePerHour,
     required this.pricePerDay,
     required this.features,
-    required this.imageUrls,
+    this.imageUrls = const [],
+    this.imageBase64 = const [],
     required this.city,
     required this.address,
-    required this.latitude,
-    required this.longitude,
+    this.location,
+    double? latitude,
+    double? longitude,
     this.isAvailable = true,
     this.rating = 0.0,
     this.totalReviews = 0,
     required this.createdAt,
     this.updatedAt,
-  });
+  })  : latitude = latitude ?? location?.latitude ?? 0.0,
+        longitude = longitude ?? location?.longitude ?? 0.0;
 
   /// Create HallModel from Firestore document
   factory HallModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return HallModel(
-      id: doc.id,
-      organizerId: data['organizerId'] ?? '',
-      organizerName: data['organizerName'] ?? '',
-      name: data['name'] ?? '',
-      description: data['description'] ?? '',
-      type: HallType.values.firstWhere(
-        (e) => e.name == data['type'],
-        orElse: () => HallType.both,
-      ),
-      capacity: data['capacity'] ?? 0,
-      pricePerHour: (data['pricePerHour'] ?? 0).toDouble(),
-      pricePerDay: (data['pricePerDay'] ?? 0).toDouble(),
-      features: List<String>.from(data['features'] ?? []),
-      imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      city: data['city'] ?? '',
-      address: data['address'] ?? '',
-      latitude: (data['latitude'] ?? 0).toDouble(),
-      longitude: (data['longitude'] ?? 0).toDouble(),
-      isAvailable: data['isAvailable'] ?? true,
-      rating: (data['rating'] ?? 0).toDouble(),
-      totalReviews: data['totalReviews'] ?? 0,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
-    );
+    try {
+      final data = doc.data() as Map<String, dynamic>;
+      print('📄 Parsing hall: ${data['name']} (ID: ${doc.id})');
+      
+      return HallModel(
+        id: doc.id,
+        organizerId: data['organizerId'] ?? '',
+        organizerName: data['organizerName'] ?? '',
+        name: data['name'] ?? '',
+        description: data['description'] ?? '',
+        type: HallType.values.firstWhere(
+          (e) => e.name == data['type'],
+          orElse: () => HallType.both,
+        ),
+        capacity: data['capacity'] ?? 0,
+        pricePerHour: (data['pricePerHour'] ?? 0).toDouble(),
+        pricePerDay: (data['pricePerDay'] ?? 0).toDouble(),
+        features: List<String>.from(data['features'] ?? []),
+        imageUrls: List<String>.from(data['imageUrls'] ?? []),
+        imageBase64: List<String>.from(data['imageBase64'] ?? []),
+        city: data['city'] ?? '',
+        address: data['address'] ?? '',
+        location: data['location'] as GeoPoint?,
+        latitude: (data['latitude'] ?? 0).toDouble(),
+        longitude: (data['longitude'] ?? 0).toDouble(),
+        isAvailable: data['isAvailable'] ?? true,
+        rating: (data['rating'] ?? 0).toDouble(),
+        totalReviews: data['totalReviews'] ?? 0,
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      );
+    } catch (e, stackTrace) {
+      print('❌ ERROR parsing hall ${doc.id}: $e');
+      print('Stack: $stackTrace');
+      rethrow;
+    }
   }
 
   /// Create HallModel from Map
@@ -98,8 +113,10 @@ class HallModel {
       pricePerDay: (map['pricePerDay'] ?? 0).toDouble(),
       features: List<String>.from(map['features'] ?? []),
       imageUrls: List<String>.from(map['imageUrls'] ?? []),
+      imageBase64: List<String>.from(map['imageBase64'] ?? []),
       city: map['city'] ?? '',
       address: map['address'] ?? '',
+      location: map['location'] as GeoPoint?,
       latitude: (map['latitude'] ?? 0).toDouble(),
       longitude: (map['longitude'] ?? 0).toDouble(),
       isAvailable: map['isAvailable'] ?? true,
@@ -123,8 +140,10 @@ class HallModel {
       'pricePerDay': pricePerDay,
       'features': features,
       'imageUrls': imageUrls,
+      'imageBase64': imageBase64,
       'city': city,
       'address': address,
+      if (location != null) 'location': location,
       'latitude': latitude,
       'longitude': longitude,
       'isAvailable': isAvailable,
@@ -148,8 +167,10 @@ class HallModel {
     double? pricePerDay,
     List<String>? features,
     List<String>? imageUrls,
+    List<String>? imageBase64,
     String? city,
     String? address,
+    GeoPoint? location,
     double? latitude,
     double? longitude,
     bool? isAvailable,
@@ -170,8 +191,10 @@ class HallModel {
       pricePerDay: pricePerDay ?? this.pricePerDay,
       features: features ?? this.features,
       imageUrls: imageUrls ?? this.imageUrls,
+      imageBase64: imageBase64 ?? this.imageBase64,
       city: city ?? this.city,
       address: address ?? this.address,
+      location: location ?? this.location,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       isAvailable: isAvailable ?? this.isAvailable,
@@ -194,10 +217,21 @@ class HallModel {
     }
   }
 
-  /// Get first image URL or placeholder
+  /// Get first image URL or Base64 or placeholder
   String get primaryImageUrl {
+    // First check Base64 images (new system)
+    if (imageBase64.isNotEmpty) {
+      return imageBase64.first; // Return Base64 string
+    }
+    // Fallback to URLs for backward compatibility
     return imageUrls.isNotEmpty ? imageUrls.first : '';
   }
+
+  /// Check if hall has Base64 images
+  bool get hasBase64Images => imageBase64.isNotEmpty;
+  
+  /// Check if hall has URL images (legacy)
+  bool get hasUrlImages => imageUrls.isNotEmpty;
 
   /// Get formatted price
   String get formattedPricePerHour => '${pricePerHour.toStringAsFixed(0)} JOD/hr';

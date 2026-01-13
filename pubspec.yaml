@@ -33,6 +33,7 @@ dependencies:
   # Image Handling
   image_picker: ^1.0.7
   cached_network_image: ^3.3.1
+  image: ^4.0.0  # For Base64 image compression
 
   # UI Components
   flutter_spinkit: ^5.2.0

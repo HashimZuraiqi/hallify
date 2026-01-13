@@ -2,11 +2,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/hall_model.dart';
 import '../services/firestore_service.dart';
-import '../services/storage_service.dart';
+import '../services/base64_image_service.dart';
 
 class HallProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
-  final StorageService _storageService = StorageService();
+  final Base64ImageService _imageService = Base64ImageService();
 
   List<HallModel> _halls = [];
   List<HallModel> _myHalls = [];
@@ -38,9 +38,16 @@ class HallProvider with ChangeNotifier {
 
   /// Load all halls (for customers)
   void loadAllHalls() {
+    print('🔍 Loading all halls from Firestore...');
     _firestoreService.getAllHalls().listen((halls) {
+      print('✅ Received ${halls.length} halls from Firestore');
+      for (var hall in halls) {
+        print('   - Hall: ${hall.name} (ID: ${hall.id}, Available: ${hall.isAvailable})');
+      }
       _halls = halls;
       notifyListeners();
+    }, onError: (error) {
+      print('❌ Error loading halls: $error');
     });
   }
 
@@ -80,17 +87,14 @@ class HallProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Delete a hall
+  /// Delete a hall (no Storage deletion needed - images are Base64 in Firestore)
   Future<bool> deleteHall(String hallId) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // Delete all images
-      await _storageService.deleteHallImages(hallId);
-
-      // Delete hall from Firestore
+      // Delete hall from Firestore (images are embedded as Base64)
       await _firestoreService.deleteHall(hallId);
 
       _isLoading = false;
@@ -146,41 +150,42 @@ class HallProvider with ChangeNotifier {
     }
   }
 
-  /// Overloaded createHall method that accepts HallModel and image paths
+  /// Create hall with Base64-encoded images (FREE - no Storage needed)
   Future<String?> createHall(HallModel hall, {List<String>? imagePaths}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // Create hall first to get ID
-      final hallId = await _firestoreService.createHall(hall);
-
-      List<String> imageUrls = [];
+      List<String> imageBase64List = [];
       
-      // Upload images if provided
+      // Encode images to Base64 if provided (non-blocking)
       if (imagePaths != null && imagePaths.isNotEmpty) {
-        final imageFiles = imagePaths.map((path) => File(path)).toList();
-        imageUrls = await _storageService.uploadHallImages(
-          imageFiles: imageFiles,
-          hallId: hallId,
-        );
-
-        // Update hall with image URLs
-        final updatedHall = hall.copyWith(
-          id: hallId, 
-          imageUrls: imageUrls,
-          isAvailable: true,  // Ensure hall is visible
-        );
-        await _firestoreService.updateHall(updatedHall);
-      } else {
-        // Even without images, update the hall with its ID
-        final updatedHall = hall.copyWith(
-          id: hallId,
-          isAvailable: true,
-        );
-        await _firestoreService.updateHall(updatedHall);
+        try {
+          print('Encoding ${imagePaths.length} images to Base64...');
+          final imageFiles = imagePaths.map((path) => File(path)).toList();
+          imageBase64List = await _imageService.encodeImagesToBase64(imageFiles);
+          print('Successfully encoded ${imageBase64List.length} images');
+        } catch (e) {
+          print('Warning: Failed to encode some images: $e');
+          // Continue without images rather than failing completely
+        }
       }
+
+      // Create hall with Base64 images (or without if encoding failed)
+      final hallWithImages = hall.copyWith(
+        imageBase64: imageBase64List,
+        isAvailable: true,  // CRITICAL: Always set to true so hall appears
+      );
+      
+      print('Creating hall in Firestore with ${imageBase64List.length} images...');
+      final hallId = await _firestoreService.createHall(hallWithImages);
+      print('Hall created with ID: $hallId');
+      
+      // Update with correct ID
+      final updatedHall = hallWithImages.copyWith(id: hallId);
+      await _firestoreService.updateHall(updatedHall);
+      print('Hall updated with ID');
 
       _isLoading = false;
       notifyListeners();
@@ -197,28 +202,27 @@ class HallProvider with ChangeNotifier {
     }
   }
 
-  /// Overloaded updateHall method that accepts HallModel and new image paths
+  /// Update hall with new Base64-encoded images (FREE - no Storage needed)
   Future<bool> updateHall(HallModel hall, {List<String>? newImagePaths}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      List<String> updatedImageUrls = List.from(hall.imageUrls);
+      List<String> updatedImageBase64 = List.from(hall.imageBase64);
 
-      // Upload new images if provided
+      // Encode new images if provided
       if (newImagePaths != null && newImagePaths.isNotEmpty) {
+        print('Encoding ${newImagePaths.length} new images to Base64...');
         final imageFiles = newImagePaths.map((path) => File(path)).toList();
-        final newImageUrls = await _storageService.uploadHallImages(
-          imageFiles: imageFiles,
-          hallId: hall.id,
-        );
-        updatedImageUrls.addAll(newImageUrls);
+        final newImages = await _imageService.encodeImagesToBase64(imageFiles);
+        updatedImageBase64.addAll(newImages);
+        print('Added ${newImages.length} new images');
       }
 
       // Update hall
       final updatedHall = hall.copyWith(
-        imageUrls: updatedImageUrls,
+        imageBase64: updatedImageBase64,
         updatedAt: DateTime.now(),
       );
       await _firestoreService.updateHall(updatedHall);
