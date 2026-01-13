@@ -176,7 +176,8 @@ class ChatProvider with ChangeNotifier {
   void clearCurrentConversation() {
     _messagesSub?.cancel();
     _currentConversation = null;
-    _messages = [];
+    _streamMessages = [];
+    _pendingMessages.clear();
     notifyListeners();
   }
 
