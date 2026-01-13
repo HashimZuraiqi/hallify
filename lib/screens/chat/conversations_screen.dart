@@ -159,6 +159,7 @@ class _ConversationTile extends StatelessWidget {
             builder: (_) => ChatScreen(
               conversationId: conversation.id,
               otherUserName: otherUserName,
+              otherUserId: otherUserId,
               hallName: conversation.hallName,
             ),
           ),

@@ -4,13 +4,14 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/hall_provider.dart';
 import '../../providers/visit_provider.dart';
+import '../../providers/booking_provider.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/hall_card.dart';
 import '../../widgets/visit_card.dart';
 import '../../widgets/loading_widget.dart';
 import 'my_halls_screen.dart';
 import 'add_edit_hall_screen.dart';
-import 'organizer_visits_screen.dart';
+import 'organizer_bookings_screen.dart';
 import 'organizer_profile_screen.dart';
 import '../chat/conversations_screen.dart';
 
@@ -27,7 +28,7 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
   final List<Widget> _screens = [
     const _DashboardTab(),
     const MyHallsScreen(),
-    const OrganizerVisitsScreen(),
+    const OrganizerBookingsScreen(), // NEW: Using new booking screen
     const ConversationsScreen(),
     const OrganizerProfileScreen(),
   ];
@@ -45,10 +46,13 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final hallProvider = Provider.of<HallProvider>(context, listen: false);
     final visitProvider = Provider.of<VisitProvider>(context, listen: false);
+    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
 
     if (authProvider.user != null) {
       hallProvider.loadOrganizerHalls(authProvider.user!.id);
       visitProvider.loadOrganizerVisits(authProvider.user!.id);
+      // NEW: Start listening to bookings (new system)
+      bookingProvider.startListeningToOrganizerBookings(authProvider.user!.id);
     }
   }
 

@@ -9,13 +9,16 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../config/theme.dart';
 import '../../models/hall_model.dart';
 import '../../models/visit_request_model.dart';
+import '../../models/booking_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/visit_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/booking_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/loading_widget.dart';
+import '../../widgets/booking_bottom_sheet.dart';
 import '../chat/chat_screen.dart';
 
 class HallDetailsScreen extends StatefulWidget {
@@ -34,12 +37,15 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
   final PageController _pageController = PageController();
   GoogleMapController? _mapController;
   StreamSubscription<QuerySnapshot>? _visitListener;
+  StreamSubscription<QuerySnapshot>? _bookingListener;
   VisitRequestModel? _currentUserVisit;
+  BookingModel? _currentUserBooking; // Active booking for this hall
 
   @override
   void initState() {
     super.initState();
     _setupVisitListener();
+    _setupBookingListener();
   }
 
   void _setupVisitListener() {
@@ -67,28 +73,58 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
     });
   }
 
+  void _setupBookingListener() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user == null) return;
+
+    // Real-time listener for user's ACTIVE BOOKING on THIS hall
+    _bookingListener = FirebaseFirestore.instance
+        .collection('bookings')
+        .where('venueId', isEqualTo: widget.hall.id)
+        .where('userId', isEqualTo: authProvider.user!.id)
+        .where('status', isEqualTo: 'confirmed')
+        .orderBy('startAt', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          // Find an upcoming or active booking
+          final now = DateTime.now();
+          final upcomingBooking = snapshot.docs.where((doc) {
+            final data = doc.data();
+            final endAt = (data['endAt'] as Timestamp).toDate();
+            return endAt.isAfter(now); // Booking hasn't ended yet
+          }).firstOrNull;
+          
+          if (upcomingBooking != null) {
+            _currentUserBooking = BookingModel.fromFirestore(upcomingBooking);
+          } else {
+            _currentUserBooking = null;
+          }
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
     _visitListener?.cancel();
+    _bookingListener?.cancel();
     _pageController.dispose();
     _mapController?.dispose();
     super.dispose();
   }
 
   void _showBookingDialog() {
+    // NEW: Using the new enterprise-grade booking bottom sheet
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => _BookingBottomSheet(
-        hall: widget.hall,
-        selectedDate: _selectedDate,
-        selectedTimeSlot: _selectedTimeSlot,
-        onDateChanged: (date) => setState(() => _selectedDate = date),
-        onTimeSlotChanged: (slot) => setState(() => _selectedTimeSlot = slot),
-      ),
+      builder: (context) => BookingBottomSheet(hall: widget.hall),
     );
   }
 
@@ -124,13 +160,46 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
         MaterialPageRoute(
           builder: (_) => ChatScreen(
             conversationId: conversation.id,
-            otherUserName: 'Organizer',
+            otherUserName: widget.hall.organizerName,
+            otherUserId: widget.hall.organizerId,
+            hallName: widget.hall.name,
           ),
         ),
       );
     } catch (e) {
       Navigator.pop(context);
       Helpers.showErrorSnackbar(context, 'Failed to start chat');
+    }
+  }
+
+  Future<void> _cancelVisit(String visitId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Request?'),
+        content: const Text('Are you sure you want to cancel this visit request?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      final visitProvider = Provider.of<VisitProvider>(context, listen: false);
+      await visitProvider.cancelVisitRequest(visitId);
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Visit request cancelled')),
+      );
     }
   }
 
@@ -471,21 +540,57 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
                     style: const TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 12),
-                  const SizedBox(height: 12),
-                  // PENDING VISITS
                   if (existingVisit.status == VisitStatus.pending)
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () {
+                              // Call the booking dialog - it will detect existing visit automatically
                               _showBookingDialog();
                             },
-                            icon: const Icon(Icons.edit, size: 18),
-                            label: const Text('Edit Visit'),
+                            icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
+                            label: const Text('Edit Visit', style: TextStyle(color: AppTheme.primaryColor)),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.orange,
-                              side: const BorderSide(color: Colors.orange),
+                              side: const BorderSide(color: AppTheme.primaryColor),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Cancel Request?'),
+                                  content: const Text('Are you sure you want to cancel this visit request?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('No'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: const Text('Yes', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                final visitProvider = Provider.of<VisitProvider>(context, listen: false);
+                                await visitProvider.cancelVisitRequest(existingVisit.id);
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Visit request cancelled')),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.cancel, color: Colors.red),
+                            label: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.red),
                             ),
                           ),
                         ),
@@ -533,59 +638,104 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
                         ),
                       ],
                     ),
-                            icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
-                            label: const Text('Edit Visit', style: TextStyle(color: AppTheme.primaryColor)),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppTheme.primaryColor),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Cancel Request?'),
-                                  content: const Text('Are you sure you want to cancel this visit request?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context, false),
-                                      child: const Text('No'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context, true),
-                                      child: const Text('Yes', style: TextStyle(color: Colors.red)),
-                                    ),
-                                  ],
-                                ),
-                              );
-
-                              if (confirm == true) {
-                                final visitProvider = Provider.of<VisitProvider>(context, listen: false);
-                                await visitProvider.cancelVisitRequest(existingVisit.id);
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Visit request cancelled')),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.cancel, color: Colors.red),
-                            label: const Text('Cancel', style: TextStyle(color: Colors.red)),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.red),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                 ],
               ),
             );
           }
 
-          // No existing visit - show normal schedule button
+          // Check for active booking FIRST (takes priority over showing Schedule button)
+          if (_currentUserBooking != null) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Active booking info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.event_available, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'You have a booking',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                              ),
+                              Text(
+                                _currentUserBooking!.formattedDateTime,
+                                style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Action buttons
+                  Row(
+                    children: [
+                      // Chat Button
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _startChat,
+                          icon: const Icon(Icons.chat, size: 18),
+                          label: const Text('Message'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Cancel Button
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _cancelBooking(_currentUserBooking!.id),
+                          icon: const Icon(Icons.close, size: 18),
+                          label: const Text('Cancel Booking'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // No existing visit or booking - show normal schedule button
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -615,7 +765,7 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
                 // Book Visit Button
                 Expanded(
                   child: GradientButton(
-                    text: 'Schedule Visit',
+                    text: 'Book Now',
                     onPressed: _showBookingDialog,
                   ),
                 ),
@@ -625,6 +775,40 @@ class _HallDetailsScreenState extends State<HallDetailsScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _cancelBooking(String bookingId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Booking?'),
+        content: const Text('Are you sure you want to cancel this booking? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+      final success = await bookingProvider.cancelBooking(bookingId);
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Booking cancelled' : 'Failed to cancel booking'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   String _getTypeLabel(HallType type) {

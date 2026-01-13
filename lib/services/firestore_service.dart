@@ -249,35 +249,7 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => VisitRequestModel.fromFirestore(doc)).toList());
   }
 
-  /// Check if time slot is available
-  Future<bool> isTimeSlotAvailable({
-    required String hallId,
-    required DateTime date,
-    required String time,
-  }) async {
-    try {
-      final startOfDay = DateTime(date.year, date.month, date.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      final snapshot = await _visitsCollection
-          .where('hallId', isEqualTo: hallId)
-          .where('visitDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('visitDate', isLessThan: Timestamp.fromDate(endOfDay))
-          .where('status', whereIn: ['pending', 'approved']).get();
-
-      // Check if any existing visit conflicts with the requested time
-      for (var doc in snapshot.docs) {
-        final visit = VisitRequestModel.fromFirestore(doc);
-        if (visit.visitTime == time) {
-          return false;
-        }
-      }
-
-      return true;
-    } catch (e) {
-      return true; // Allow booking if check fails
-    }
-  }
 
   /// Get user's existing pending or approved visit for a specific hall
   Future<VisitRequestModel?> getUserPendingVisitForHall({
@@ -445,6 +417,36 @@ class FirestoreService {
   }
 
   // ==================== HALL SLOT LOCKING (RACE-CONDITION SAFE) ====================
+
+  /// Check if a time slot is available (checking both hallSlots and visitRequests)
+  Future<bool> isTimeSlotAvailable({
+    required String hallId,
+    required DateTime date,
+    required String time,
+  }) async {
+    try {
+      final dateStr = _formatDate(date);
+      final timeStr = time.split('-')[0].trim();
+      
+      // 1. Check atomic hallSlots (Single Source of Truth)
+      final slotId = '${hallId}_${dateStr}_$timeStr';
+      final slotDoc = await _firestore.collection('hallSlots').doc(slotId).get();
+      if (slotDoc.exists) return false; // Already locked
+
+      // 2. Check overlap in visitRequests (Double-Check)
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final query = await _visitsCollection
+          .where('hallId', isEqualTo: hallId)
+          .where('visitDate', isEqualTo: Timestamp.fromDate(startOfDay))
+          .where('visitTime', isEqualTo: time)
+          .where('status', whereIn: ['pending', 'approved'])
+          .get();
+
+      return query.docs.isEmpty;
+    } catch (e) {
+      return false; // Assume unavailable on error safety
+    }
+  }
 
   /// Approve visit and lock slot atomically (prevents race conditions)
   Future<void> approveVisitAndLockSlot(VisitRequestModel visit) async {

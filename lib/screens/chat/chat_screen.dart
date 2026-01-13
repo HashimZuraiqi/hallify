@@ -11,12 +11,14 @@ import '../../widgets/loading_widget.dart';
 class ChatScreen extends StatefulWidget {
   final String conversationId;
   final String otherUserName;
+  final String? otherUserId; // Added: direct recipient ID
   final String? hallName;
 
   const ChatScreen({
     super.key,
     required this.conversationId,
     required this.otherUserName,
+    this.otherUserId, // Now optional - can be derived from conversation
     this.hallName,
   });
 
@@ -79,9 +81,29 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (authProvider.user == null) return;
 
-    // Resolve the receiver from the current conversation
-    final conversation = chatProvider.getConversationById(widget.conversationId);
-    final receiverId = conversation?.participants.firstWhere((id) => id != authProvider.user!.id, orElse: () => '');
+    // Try to get receiver ID from:
+    // 1. widget.otherUserId (directly passed)
+    // 2. conversation participants (from provider)
+    // 3. currentConversation (if set)
+    String? receiverId = widget.otherUserId;
+    
+    if (receiverId == null || receiverId.isEmpty) {
+      final conversation = chatProvider.getConversationById(widget.conversationId);
+      receiverId = conversation?.participants.firstWhere(
+        (id) => id != authProvider.user!.id, 
+        orElse: () => '',
+      );
+    }
+    
+    if (receiverId == null || receiverId.isEmpty) {
+      final current = chatProvider.currentConversation;
+      if (current != null) {
+        receiverId = current.participants.firstWhere(
+          (id) => id != authProvider.user!.id,
+          orElse: () => '',
+        );
+      }
+    }
 
     if (receiverId == null || receiverId.isEmpty) {
       Helpers.showErrorSnackbar(context, 'Unable to find the recipient for this chat.');

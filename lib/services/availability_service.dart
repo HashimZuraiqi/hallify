@@ -1,239 +1,303 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/availability_slot_model.dart';
+import '../models/availability_rule_model.dart';
+import '../models/booking_model.dart';
 
+/// Availability service that generates slots at runtime from rules.
+/// Slots are NEVER stored in the database - only availability rules are stored.
 class AvailabilityService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late final CollectionReference _slotsCollection;
 
-  AvailabilityService() {
-    _slotsCollection = _firestore.collection('availabilitySlots');
+  CollectionReference get _rulesCollection => _firestore.collection('availability_rules');
+  CollectionReference get _bookingsCollection => _firestore.collection('bookings');
+
+  // ==================== AVAILABILITY RULES CRUD ====================
+
+  /// Create a new availability rule
+  Future<String> createRule(AvailabilityRuleModel rule) async {
+    final docRef = await _rulesCollection.add(rule.toMap());
+    return docRef.id;
   }
 
-  /// Generate time slots for a date range
-  Future<void> generateSlotsForDateRange({
-    required String hallId,
-    required DateTime startDate,
-    required DateTime endDate,
-    required String startTime, // "09:00"
-    required String endTime, // "18:00"
-    required int slotDuration, // minutes (e.g., 60)
-    List<int> excludedWeekdays = const [], // 0=Sun, 6=Sat
+  /// Update an existing rule
+  Future<void> updateRule(AvailabilityRuleModel rule) async {
+    await _rulesCollection.doc(rule.id).update({
+      ...rule.toMap(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Delete a rule
+  Future<void> deleteRule(String ruleId) async {
+    await _rulesCollection.doc(ruleId).delete();
+  }
+
+  /// Get all rules for a venue
+  Future<List<AvailabilityRuleModel>> getVenueRules(String venueId) async {
+    // DEBUG: First check ALL rules to see what exists
+    final allRulesSnapshot = await _rulesCollection.get();
+    print('DEBUG: Total rules in database: ${allRulesSnapshot.docs.length}');
+    for (final doc in allRulesSnapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      print('DEBUG: Rule ${doc.id} - venueId: ${data['venueId']}, weekday: ${data['weekday']}, type: ${data['type']}');
+    }
+    
+    // Now query for this specific venue
+    print('DEBUG: Querying rules for venueId: $venueId');
+    final snapshot = await _rulesCollection
+        .where('venueId', isEqualTo: venueId)
+        .get();
+    print('DEBUG: Found ${snapshot.docs.length} rules for this venue');
+    
+    return snapshot.docs
+        .map((doc) => AvailabilityRuleModel.fromFirestore(doc))
+        .toList();
+  }
+
+  /// Stream of rules for a venue
+  Stream<List<AvailabilityRuleModel>> getVenueRulesStream(String venueId) {
+    return _rulesCollection
+        .where('venueId', isEqualTo: venueId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => AvailabilityRuleModel.fromFirestore(doc))
+            .toList());
+  }
+
+  // ==================== SLOT GENERATION (RUNTIME ONLY) ====================
+
+  /// Generate available time slots for a specific date.
+  /// This is the core function - slots are generated at runtime, never stored.
+  Future<List<TimeSlot>> generateAvailableSlots({
+    required String venueId,
+    required DateTime date,
   }) async {
-    final batch = _firestore.batch();
-    int batchCount = 0;
+    // 1. Get venue rules
+    final rules = await getVenueRules(venueId);
+    print('DEBUG: Found ${rules.length} rules for venue $venueId');
+    for (final r in rules) {
+      print('DEBUG: Rule type=${r.type}, weekday=${r.weekday}, startTime=${r.startTime}');
+    }
+    
+    if (rules.isEmpty) {
+      print('DEBUG: No rules found, returning empty slots');
+      return [];
+    }
 
-    for (var date = startDate;
-        date.isBefore(endDate) || date.isAtSameMomentAs(endDate);
-        date = date.add(const Duration(days: 1))) {
-      // Skip excluded weekdays
-      if (excludedWeekdays.contains(date.weekday % 7)) continue;
+    // 2. Find applicable rule for this date
+    final applicableRule = _findApplicableRule(rules, date);
+    print('DEBUG: Looking for rule for weekday=${date.weekday} (${_weekdayName(date.weekday)})');
+    print('DEBUG: Applicable rule found: ${applicableRule != null}');
+    
+    if (applicableRule == null || applicableRule.isBlocked) {
+      print('DEBUG: No applicable rule or day is blocked');
+      return [];
+    }
 
-      final dateStr = _formatDate(date);
-      
-      // Generate time slots for this day
-      final slots = _generateTimeSlotsForDay(
-        startTime: startTime,
-        endTime: endTime,
-        duration: slotDuration,
-      );
+    // 3. Generate all possible slots from rule
+    final allSlots = _generateSlotsFromRule(applicableRule, date);
+    print('DEBUG: Generated ${allSlots.length} slots from rule');
 
-      for (var slot in slots) {
-        final docRef = _slotsCollection.doc();
-        final slotModel = AvailabilitySlotModel(
-          id: docRef.id,
-          hallId: hallId,
-          date: dateStr,
-          startTime: slot['start']!,
-          endTime: slot['end']!,
-          duration: slotDuration,
-          isAvailable: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+    // 4. Get existing bookings for this date
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    
+    final bookingsSnapshot = await _bookingsCollection
+        .where('venueId', isEqualTo: venueId)
+        .where('status', isEqualTo: BookingStatus.confirmed.name)
+        .where('startAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('startAt', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
 
-        batch.set(docRef, slotModel.toMap());
-        batchCount++;
+    final existingBookings = bookingsSnapshot.docs
+        .map((doc) => BookingModel.fromFirestore(doc))
+        .toList();
 
-        // Firestore batch limit is 500
-        if (batchCount >= 450) {
-          await batch.commit();
-          batchCount = 0;
+    // 5. Filter out slots that overlap with existing bookings
+    final availableSlots = <TimeSlot>[];
+    for (final slot in allSlots) {
+      bool hasConflict = false;
+      for (final booking in existingBookings) {
+        if (slot.overlapsWithBooking(booking)) {
+          hasConflict = true;
+          break;
         }
+      }
+      if (!hasConflict) {
+        availableSlots.add(slot);
       }
     }
 
-    if (batchCount > 0) {
-      await batch.commit();
+    // 6. Filter out past slots if date is today
+    final now = DateTime.now();
+    if (_isSameDay(date, now)) {
+      return availableSlots
+          .where((slot) => slot.startAt.isAfter(now))
+          .toList();
     }
+
+    print('DEBUG: Returning ${availableSlots.length} available slots');
+    return availableSlots;
   }
 
-  /// Get available slots for a specific date and hall
-  Future<List<AvailabilitySlotModel>> getAvailableSlotsForDate({
-    required String hallId,
+  String _weekdayName(int weekday) {
+    const names = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return weekday >= 1 && weekday <= 7 ? names[weekday] : 'Unknown';
+  }
+
+  /// Generate slots with availability status (for calendar display)
+  Future<List<TimeSlot>> generateAllSlots({
+    required String venueId,
     required DateTime date,
   }) async {
-    final dateStr = _formatDate(date);
-    final snapshot = await _slotsCollection
-        .where('hallId', isEqualTo: hallId)
-        .where('date', isEqualTo: dateStr)
-        .where('isAvailable', isEqualTo: true)
-        .orderBy('startTime')
+    // 1. Get venue rules
+    final rules = await getVenueRules(venueId);
+    if (rules.isEmpty) return [];
+
+    // 2. Find applicable rule for this date
+    final applicableRule = _findApplicableRule(rules, date);
+    if (applicableRule == null || applicableRule.isBlocked) return [];
+
+    // 3. Generate all possible slots from rule
+    final allSlots = _generateSlotsFromRule(applicableRule, date);
+
+    // 4. Get existing bookings for this date
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    
+    final bookingsSnapshot = await _bookingsCollection
+        .where('venueId', isEqualTo: venueId)
+        .where('status', isEqualTo: BookingStatus.confirmed.name)
+        .where('startAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('startAt', isLessThan: Timestamp.fromDate(endOfDay))
         .get();
 
-    return snapshot.docs
-        .map((doc) => AvailabilitySlotModel.fromFirestore(doc))
+    final existingBookings = bookingsSnapshot.docs
+        .map((doc) => BookingModel.fromFirestore(doc))
         .toList();
+
+    // 5. Mark slots as available/unavailable
+    final now = DateTime.now();
+    return allSlots.map((slot) {
+      bool isAvailable = true;
+      
+      // Check for booking conflicts
+      for (final booking in existingBookings) {
+        if (slot.overlapsWithBooking(booking)) {
+          isAvailable = false;
+          break;
+        }
+      }
+
+      // Check if slot is in the past (for today)
+      if (_isSameDay(date, now) && slot.startAt.isBefore(now)) {
+        isAvailable = false;
+      }
+
+      return TimeSlot(
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        isAvailable: isAvailable,
+      );
+    }).toList();
   }
 
-  /// Get all slots (available and booked) for a date
-  Future<List<AvailabilitySlotModel>> getAllSlotsForDate({
-    required String hallId,
+  /// Check if a specific date has available slots
+  Future<bool> hasAvailableSlots({
+    required String venueId,
     required DateTime date,
   }) async {
-    final dateStr = _formatDate(date);
-    final snapshot = await _slotsCollection
-        .where('hallId', isEqualTo: hallId)
-        .where('date', isEqualTo: dateStr)
-        .orderBy('startTime')
-        .get();
-
-    return snapshot.docs
-        .map((doc) => AvailabilitySlotModel.fromFirestore(doc))
-        .toList();
+    final slots = await generateAvailableSlots(venueId: venueId, date: date);
+    return slots.isNotEmpty;
   }
 
-  /// Toggle slot availability
-  Future<void> toggleSlotAvailability(String slotId, bool isAvailable) async {
-    await _slotsCollection.doc(slotId).update({
-      'isAvailable': isAvailable,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  /// Mark slot as booked (when visit is approved)
-  Future<void> markSlotAsBooked({
-    required String slotId,
-    required String userId,
-    required String visitId,
+  /// Get dates with availability for a date range (for calendar)
+  Future<Map<DateTime, bool>> getAvailabilityForDateRange({
+    required String venueId,
+    required DateTime startDate,
+    required DateTime endDate,
   }) async {
-    await _slotsCollection.doc(slotId).update({
-      'isAvailable': false,
-      'bookedBy': userId,
-      'visitId': visitId,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  /// Free slot (when visit is cancelled/rejected)
-  Future<void> freeSlot(String slotId) async {
-    await _slotsCollection.doc(slotId).update({
-      'isAvailable': true,
-      'bookedBy': null,
-      'visitId': null,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  /// Free slot by visitId
-  Future<void> freeSlotByVisitId(String visitId) async {
-    final snapshot = await _slotsCollection
-        .where('visitId', isEqualTo: visitId)
-        .get();
-
-    final batch = _firestore.batch();
-    for (var doc in snapshot.docs) {
-      batch.update(doc.reference, {
-        'isAvailable': true,
-        'bookedBy': null,
-        'visitId': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
-  }
-
-  /// Block entire day
-  Future<void> blockDay(String hallId, DateTime date) async {
-    final dateStr = _formatDate(date);
-    final snapshot = await _slotsCollection
-        .where('hallId', isEqualTo: hallId)
-        .where('date', isEqualTo: dateStr)
-        .get();
-
-    final batch = _firestore.batch();
-    for (var doc in snapshot.docs) {
-      batch.update(doc.reference, {
-        'isAvailable': false,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
-  }
-
-  /// Unblock entire day
-  Future<void> unblockDay(String hallId, DateTime date) async {
-    final dateStr = _formatDate(date);
-    final snapshot = await _slotsCollection
-        .where('hallId', isEqualTo: hallId)
-        .where('date', isEqualTo: dateStr)
-        .where('bookedBy', isEqualTo: null) // Only unblock slots that aren't booked
-        .get();
-
-    final batch = _firestore.batch();
-    for (var doc in snapshot.docs) {
-      batch.update(doc.reference, {
-        'isAvailable': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
-  }
-
-  /// Delete all slots for a hall
-  Future<void> deleteAllSlotsForHall(String hallId) async {
-    final snapshot = await _slotsCollection
-        .where('hallId', isEqualTo: hallId)
-        .get();
-
-    final batch = _firestore.batch();
-    for (var doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
-  }
-
-  // ===================== HELPER METHODS =====================
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
-  List<Map<String, String>> _generateTimeSlotsForDay({
-    required String startTime,
-    required String endTime,
-    required int duration,
-  }) {
-    final slots = <Map<String, String>>[];
+    final availability = <DateTime, bool>{};
     
-    final start = _parseTime(startTime);
-    final end = _parseTime(endTime);
+    for (var date = startDate;
+        date.isBefore(endDate) || _isSameDay(date, endDate);
+        date = date.add(const Duration(days: 1))) {
+      final hasSlots = await hasAvailableSlots(venueId: venueId, date: date);
+      availability[DateTime(date.year, date.month, date.day)] = hasSlots;
+    }
     
-    var current = start;
-    while (current.isBefore(end)) {
-      final slotEnd = current.add(Duration(minutes: duration));
-      if (slotEnd.isAfter(end)) break;
+    return availability;
+  }
+
+  // ==================== HELPER METHODS ====================
+
+  /// Find the most specific applicable rule for a date
+  AvailabilityRuleModel? _findApplicableRule(List<AvailabilityRuleModel> rules, DateTime date) {
+    // First, check for specific date rule (highest priority)
+    for (final rule in rules) {
+      if (rule.type == RuleType.specificDate && 
+          rule.date != null && 
+          _isSameDay(rule.date!, date)) {
+        return rule;
+      }
+    }
+
+    // Then, check for weekly rule
+    // Dart's weekday: 1=Monday, 2=Tuesday, ..., 7=Sunday
+    // We store weekday the same way (1-7), so use directly
+    final weekday = date.weekday;
+    for (final rule in rules) {
+      if (rule.type == RuleType.weekly && rule.weekday == weekday) {
+        return rule;
+      }
+    }
+
+    return null;
+  }
+
+  /// Generate slots from a rule for a specific date
+  List<TimeSlot> _generateSlotsFromRule(AvailabilityRuleModel rule, DateTime date) {
+    final slots = <TimeSlot>[];
+    
+    final startTime = _parseTime(rule.startTime);
+    final endTime = _parseTime(rule.endTime);
+    final duration = rule.slotDurationMinutes;
+    final buffer = rule.bufferMinutes;
+
+    var currentStart = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      startTime.hour,
+      startTime.minute,
+    );
+
+    final dayEnd = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      endTime.hour,
+      endTime.minute,
+    );
+
+    while (currentStart.isBefore(dayEnd)) {
+      final slotEnd = currentStart.add(Duration(minutes: duration));
       
-      slots.add({
-        'start': _formatTime(current),
-        'end': _formatTime(slotEnd),
-      });
+      if (slotEnd.isAfter(dayEnd)) break;
       
-      current = slotEnd;
+      slots.add(TimeSlot(
+        startAt: currentStart,
+        endAt: slotEnd,
+        isAvailable: true,
+      ));
+      
+      // Move to next slot start (including buffer)
+      currentStart = slotEnd.add(Duration(minutes: buffer));
     }
-    
+
     return slots;
   }
 
+  /// Parse time string to DateTime (uses today's date)
   DateTime _parseTime(String time) {
     final parts = time.split(':');
     final now = DateTime.now();
@@ -246,7 +310,77 @@ class AvailabilityService {
     );
   }
 
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  /// Check if two dates are the same day
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  // ==================== QUICK SETUP HELPERS ====================
+
+  /// Create default weekly rules for a venue (Mon-Fri, 9am-6pm)
+  Future<void> createDefaultWeeklyRules({
+    required String venueId,
+    String startTime = '09:00',
+    String endTime = '18:00',
+    int slotDuration = 60,
+    int buffer = 0,
+    List<int> workDays = const [1, 2, 3, 4, 5], // Mon-Fri
+  }) async {
+    final batch = _firestore.batch();
+
+    for (final weekday in workDays) {
+      final docRef = _rulesCollection.doc();
+      final rule = AvailabilityRuleModel(
+        id: docRef.id,
+        venueId: venueId,
+        type: RuleType.weekly,
+        weekday: weekday,
+        startTime: startTime,
+        endTime: endTime,
+        slotDurationMinutes: slotDuration,
+        bufferMinutes: buffer,
+        createdAt: DateTime.now(),
+      );
+      batch.set(docRef, rule.toMap());
+    }
+
+    await batch.commit();
+  }
+
+  /// Block a specific date
+  Future<void> blockDate({
+    required String venueId,
+    required DateTime date,
+  }) async {
+    final rule = AvailabilityRuleModel(
+      id: '',
+      venueId: venueId,
+      type: RuleType.specificDate,
+      date: date,
+      startTime: '00:00',
+      endTime: '00:00',
+      isBlocked: true,
+      createdAt: DateTime.now(),
+    );
+    await createRule(rule);
+  }
+
+  /// Unblock a date (delete the blocking rule)
+  Future<void> unblockDate({
+    required String venueId,
+    required DateTime date,
+  }) async {
+    final snapshot = await _rulesCollection
+        .where('venueId', isEqualTo: venueId)
+        .where('type', isEqualTo: RuleType.specificDate.name)
+        .where('isBlocked', isEqualTo: true)
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final rule = AvailabilityRuleModel.fromFirestore(doc);
+      if (rule.date != null && _isSameDay(rule.date!, date)) {
+        await doc.reference.delete();
+      }
+    }
   }
 }

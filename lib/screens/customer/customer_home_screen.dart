@@ -5,13 +5,14 @@ import '../../providers/auth_provider.dart';
 import '../../providers/hall_provider.dart';
 import '../../providers/visit_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/booking_provider.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/hall_card.dart';
 import '../../widgets/loading_widget.dart';
 import '../chat/conversations_screen.dart';
 import 'browse_halls_screen.dart';
 import 'hall_details_screen.dart';
-import 'visit_requests_screen.dart';
+import 'my_bookings_screen.dart';
 import 'customer_profile_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -37,15 +38,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       final hallProvider = Provider.of<HallProvider>(context, listen: false);
       final visitProvider = Provider.of<VisitProvider>(context, listen: false);
       final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
 
       // Load halls
       hallProvider.loadAllHalls();
       hallProvider.loadFeaturedHalls();
 
-      // Load visit requests for customer
+      // Load visit requests for customer (old system)
       if (authProvider.currentUser != null) {
         visitProvider.loadCustomerVisits(authProvider.currentUser!.uid);
         chatProvider.loadConversations(authProvider.currentUser!.uid);
+        // NEW: Start listening to bookings (new system)
+        bookingProvider.startListeningToMyBookings(authProvider.currentUser!.uid);
       }
     });
   }
@@ -64,7 +68,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         children: [
           _HomeTab(searchController: _searchController),
           const BrowseHallsScreen(),
-          const VisitRequestsScreen(),
+          const MyBookingsScreen(), // NEW: Using new booking screen
           const ConversationsScreen(),
           const CustomerProfileScreen(),
         ],

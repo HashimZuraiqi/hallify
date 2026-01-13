@@ -1,43 +1,33 @@
 {
   "indexes": [
     {
-      "collectionGroup": "halls",
+      "collectionGroup": "bookings",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "organizerId",
+          "fieldPath": "venueId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startAt",
+          "order": "ASCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "visitRequests",
+      "collectionGroup": "bookings",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "organizerId",
+          "fieldPath": "userId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "conversations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "participants",
-          "arrayConfig": "CONTAINS"
-        },
-        {
-          "fieldPath": "lastMessageTime",
+          "fieldPath": "startAt",
           "order": "DESCENDING"
         }
       ]
@@ -47,25 +37,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "customerId",
+          "fieldPath": "organizerId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "bookings",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "hallId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
+          "fieldPath": "startAt",
           "order": "DESCENDING"
         }
       ]

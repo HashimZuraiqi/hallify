@@ -10,7 +10,9 @@ class ChatProvider with ChangeNotifier {
   final InAppNotificationService _notificationService = InAppNotificationService();
 
   List<ConversationModel> _conversations = [];
-  List<MessageModel> _messages = [];
+  List<MessageModel> _streamMessages = []; // Messages from Firestore stream
+  final Set<String> _pendingMessageIds = {}; // Track pending message content hashes
+  final List<MessageModel> _pendingMessages = []; // Optimistic messages not yet confirmed
   ConversationModel? _currentConversation;
   StreamSubscription<List<MessageModel>>? _messagesSub;
   bool _isLoading = false;
@@ -18,7 +20,21 @@ class ChatProvider with ChangeNotifier {
 
   // Getters
   List<ConversationModel> get conversations => _conversations;
-  List<MessageModel> get messages => _messages;
+  
+  /// Returns merged list of stream messages + pending messages
+  List<MessageModel> get messages {
+    // Filter out pending messages that are now in the stream (by content match)
+    final streamContents = _streamMessages.map((m) => '${m.senderId}_${m.content}').toSet();
+    final stillPending = _pendingMessages.where((m) => 
+      !streamContents.contains('${m.senderId}_${m.content}')
+    ).toList();
+    
+    // Merge and sort by time
+    final merged = [..._streamMessages, ...stillPending];
+    merged.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return merged;
+  }
+  
   ConversationModel? get currentConversation => _currentConversation;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -53,12 +69,13 @@ class ChatProvider with ChangeNotifier {
   void loadMessages(String conversationId) {
     // Reset any existing subscription to avoid duplicate listeners
     _messagesSub?.cancel();
+    _pendingMessages.clear(); // Clear pending when switching conversations
     _isLoading = true;
     notifyListeners();
 
     _messagesSub = _firestoreService.getMessages(conversationId).listen(
       (messages) {
-        _messages = messages;
+        _streamMessages = messages;
         _isLoading = false;
         notifyListeners();
       },
@@ -187,9 +204,9 @@ class ChatProvider with ChangeNotifier {
           createdAt: DateTime.now(),
         );
 
-    // Optimistic UI update - add message to local list immediately
-    // This ensures the message appears instantly before Firestore confirms
-    _messages = [..._messages, msg];
+    // Add to pending messages for optimistic UI
+    // The messages getter merges pending with stream messages
+    _pendingMessages.add(msg);
     notifyListeners();
 
     try {
@@ -206,10 +223,11 @@ class ChatProvider with ChangeNotifier {
         print('Warning: Failed to send chat notification: $e');
       }
 
+      // Message will arrive via stream, pending message will be filtered out by getter
       return true;
     } catch (e) {
-      // Remove the optimistic message on error
-      _messages = _messages.where((m) => m.createdAt != msg.createdAt).toList();
+      // Remove from pending on error
+      _pendingMessages.removeWhere((m) => m.createdAt == msg.createdAt && m.content == msg.content);
       _errorMessage = e.toString();
       notifyListeners();
       return false;

@@ -13,6 +13,7 @@ import '../../utils/helpers.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/map_picker_widget.dart';
+import 'availability_rules_screen.dart';
 
 class AddEditHallScreen extends StatefulWidget {
   final HallModel? hall;
@@ -166,6 +167,61 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
               const SizedBox(height: 12),
               _buildImagesSection(),
               const SizedBox(height: 24),
+
+              // Availability Rules Button (only for editing existing halls)
+              if (_isEditing) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppTheme.primaryColor.withOpacity(0.1), AppTheme.primaryColor.withOpacity(0.05)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.schedule, color: Colors.white),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Availability Settings',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            Text(
+                              'Set your weekly hours and block dates',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios, size: 18),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AvailabilityRulesScreen(hall: widget.hall!),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
               // Basic Information
               _buildSectionTitle('Basic Information'),
               const SizedBox(height: 12),
