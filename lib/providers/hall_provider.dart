@@ -2,11 +2,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/hall_model.dart';
 import '../services/firestore_service.dart';
-import '../services/cloudinary_service.dart';
+import '../services/storage_service.dart';
 
 class HallProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
-  final CloudinaryService _cloudinaryService = CloudinaryService();
+  final StorageService _storageService = StorageService();
 
   List<HallModel> _halls = [];
   List<HallModel> _myHalls = [];
@@ -36,21 +36,12 @@ class HallProvider with ChangeNotifier {
   String? get selectedCity => _selectedCity;
   HallType? get selectedType => _selectedType;
 
-  /// Load all halls (for customers) - paginated for performance
-  void loadAllHalls({int limit = 10}) {
-    print('🔍 Loading halls from Firestore (limit: $limit)...');
-    _firestoreService.getAllHalls(limit: limit).listen((halls) {
-      print('✅ Received ${halls.length} halls from Firestore');
+  /// Load all halls (for customers)
+  void loadAllHalls() {
+    _firestoreService.getAllHalls().listen((halls) {
       _halls = halls;
       notifyListeners();
-    }, onError: (error) {
-      print('❌ Error loading halls: $error');
     });
-  }
-
-  /// Load more halls (for pagination)
-  void loadMoreHalls() {
-    loadAllHalls(limit: _halls.length + 10);
   }
 
   /// Load featured halls
@@ -89,14 +80,17 @@ class HallProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Delete a hall (no Storage deletion needed - images are Base64 in Firestore)
+  /// Delete a hall
   Future<bool> deleteHall(String hallId) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // Delete hall from Firestore (images are embedded as Base64)
+      // Delete all images
+      await _storageService.deleteHallImages(hallId);
+
+      // Delete hall from Firestore
       await _firestoreService.deleteHall(hallId);
 
       _isLoading = false;
@@ -152,49 +146,41 @@ class HallProvider with ChangeNotifier {
     }
   }
 
-  /// Create hall with Cloudinary image URLs (fast loading)
+  /// Overloaded createHall method that accepts HallModel and image paths
   Future<String?> createHall(HallModel hall, {List<String>? imagePaths}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
+      // Create hall first to get ID
+      final hallId = await _firestoreService.createHall(hall);
+
       List<String> imageUrls = [];
       
-      // Upload images to Cloudinary if provided
+      // Upload images if provided
       if (imagePaths != null && imagePaths.isNotEmpty) {
-        try {
-          print('Uploading ${imagePaths.length} images to Cloudinary...');
-          final imageFiles = imagePaths.map((path) => File(path)).toList();
-          
-          // Generate a temporary ID for the folder
-          final tempId = DateTime.now().millisecondsSinceEpoch.toString();
-          imageUrls = await _cloudinaryService.uploadHallImages(
-            imageFiles: imageFiles,
-            hallId: tempId,
-          );
-          print('Successfully uploaded ${imageUrls.length} images');
-        } catch (e) {
-          print('Warning: Failed to upload some images: $e');
-          // Continue without images rather than failing completely
-        }
-      }
+        final imageFiles = imagePaths.map((path) => File(path)).toList();
+        imageUrls = await _storageService.uploadHallImages(
+          imageFiles: imageFiles,
+          hallId: hallId,
+        );
 
-      // Create hall with image URLs
-      final hallWithImages = hall.copyWith(
-        imageUrls: imageUrls,
-        imageBase64: [], // Clear any Base64 data
-        isAvailable: true,
-      );
-      
-      print('Creating hall in Firestore with ${imageUrls.length} image URLs...');
-      final hallId = await _firestoreService.createHall(hallWithImages);
-      print('Hall created with ID: $hallId');
-      
-      // Update with correct ID
-      final updatedHall = hallWithImages.copyWith(id: hallId);
-      await _firestoreService.updateHall(updatedHall);
-      print('Hall updated with ID');
+        // Update hall with image URLs
+        final updatedHall = hall.copyWith(
+          id: hallId, 
+          imageUrls: imageUrls,
+          isAvailable: true,  // Ensure hall is visible
+        );
+        await _firestoreService.updateHall(updatedHall);
+      } else {
+        // Even without images, update the hall with its ID
+        final updatedHall = hall.copyWith(
+          id: hallId,
+          isAvailable: true,
+        );
+        await _firestoreService.updateHall(updatedHall);
+      }
 
       _isLoading = false;
       notifyListeners();
@@ -204,7 +190,6 @@ class HallProvider with ChangeNotifier {
       
       return hallId;
     } catch (e) {
-      print('Error creating hall: $e');
       _isLoading = false;
       _errorMessage = e.toString();
       notifyListeners();
@@ -212,7 +197,7 @@ class HallProvider with ChangeNotifier {
     }
   }
 
-  /// Update hall with new Cloudinary image URLs (fast loading)
+  /// Overloaded updateHall method that accepts HallModel and new image paths
   Future<bool> updateHall(HallModel hall, {List<String>? newImagePaths}) async {
     _isLoading = true;
     _errorMessage = null;
@@ -223,20 +208,17 @@ class HallProvider with ChangeNotifier {
 
       // Upload new images if provided
       if (newImagePaths != null && newImagePaths.isNotEmpty) {
-        print('Uploading ${newImagePaths.length} new images to Cloudinary...');
         final imageFiles = newImagePaths.map((path) => File(path)).toList();
-        final newUrls = await _cloudinaryService.uploadHallImages(
+        final newImageUrls = await _storageService.uploadHallImages(
           imageFiles: imageFiles,
           hallId: hall.id,
         );
-        updatedImageUrls.addAll(newUrls);
-        print('Added ${newUrls.length} new image URLs');
+        updatedImageUrls.addAll(newImageUrls);
       }
 
       // Update hall
       final updatedHall = hall.copyWith(
         imageUrls: updatedImageUrls,
-        imageBase64: [], // Clear any old Base64 data
         updatedAt: DateTime.now(),
       );
       await _firestoreService.updateHall(updatedHall);
@@ -256,8 +238,8 @@ class HallProvider with ChangeNotifier {
     }
   }
 
-  /// Load organizer halls (void return - updates provider state) - paginated for performance
-  Future<void> loadOrganizerHalls(String organizerId, {int limit = 10}) async {
+  /// Load organizer halls (void return - updates provider state)
+  Future<void> loadOrganizerHalls(String organizerId) async {
     _isLoading = true;
     _errorMessage = null;
     // Defer notification to avoid setState during build
@@ -265,7 +247,7 @@ class HallProvider with ChangeNotifier {
 
     try {
       // Use the stream-based method that exists in FirestoreService
-      _firestoreService.getHallsByOrganizer(organizerId, limit: limit).listen((halls) {
+      _firestoreService.getHallsByOrganizer(organizerId).listen((halls) {
         _myHalls = halls;
         _isLoading = false;
         // Defer notification to avoid setState during build

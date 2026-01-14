@@ -7,7 +7,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/hall_provider.dart';
 import '../../utils/helpers.dart';
 import 'add_edit_hall_screen.dart';
-import 'availability_rules_screen.dart';
 
 class MyHallsScreen extends StatefulWidget {
   const MyHallsScreen({super.key});
@@ -543,29 +542,24 @@ class _MyHallsScreenState extends State<MyHallsScreen> {
                 // Action Buttons
                 Row(
                   children: [
-                    // Availability button - NEW!
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AvailabilityRulesScreen(hall: hall),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.schedule, size: 18),
-                        label: const Text('Schedule'),
+                        onPressed: () => _toggleActive(hall),
+                        icon: Icon(
+                          hall.isActive ? Icons.visibility_off : Icons.visibility,
+                          size: 18,
+                        ),
+                        label: Text(hall.isActive ? 'Hide' : 'Show'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
-                          side: const BorderSide(color: AppTheme.primaryColor),
+                          foregroundColor: hall.isActive ? Colors.orange : Colors.green,
+                          side: BorderSide(color: hall.isActive ? Colors.orange : Colors.green),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Edit button
+                    const SizedBox(width: 12),
                     Expanded(
+                      flex: 2,
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           await Navigator.push(
@@ -577,14 +571,14 @@ class _MyHallsScreenState extends State<MyHallsScreen> {
                           _refreshHalls();
                         },
                         icon: const Icon(Icons.edit, size: 18),
-                        label: const Text('Edit'),
+                        label: const Text('Edit Hall'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     IconButton(
                       onPressed: () => _showDeleteDialog(hall),
                       icon: const Icon(Icons.delete_outline),
