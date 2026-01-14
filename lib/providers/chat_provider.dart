@@ -59,10 +59,19 @@ class ChatProvider with ChangeNotifier {
 
   /// Load user conversations
   void loadConversations(String userId) {
-    _firestoreService.getUserConversations(userId).listen((conversations) {
-      _conversations = conversations;
-      notifyListeners();
-    });
+    print('🔍 Loading conversations for user: $userId');
+    _firestoreService.getUserConversations(userId).listen(
+      (conversations) {
+        print('✅ Loaded ${conversations.length} conversations');
+        _conversations = conversations;
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error loading conversations: $error');
+        _errorMessage = error.toString();
+        notifyListeners();
+      },
+    );
   }
 
   /// Load messages for a conversation

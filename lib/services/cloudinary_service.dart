@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
+import 'package:crypto/crypto.dart';
 
 /// Service for uploading images to Cloudinary
 /// Free tier: 25GB storage, 25GB bandwidth/month
@@ -36,23 +37,34 @@ class CloudinaryService {
       
       // Add upload parameters
       request.fields['api_key'] = _apiKey;
-      request.fields['timestamp'] = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+      final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+      request.fields['timestamp'] = timestamp;
       
-      // Generate signature for authenticated upload
-      final timestamp = request.fields['timestamp']!;
-      final paramsToSign = 'timestamp=$timestamp$_apiSecret';
-      final signature = _generateSha1(paramsToSign);
-      request.fields['signature'] = signature;
+      // Build parameters map for signature (only non-empty optional params)
+      final Map<String, String> paramsToSign = {
+        'timestamp': timestamp,
+      };
       
-      // Optional: folder for organization
-      if (folder != null) {
+      // Add optional parameters if provided
+      if (folder != null && folder.isNotEmpty) {
         request.fields['folder'] = folder;
+        paramsToSign['folder'] = folder;
       }
       
-      // Optional: custom public ID
-      if (publicId != null) {
+      if (publicId != null && publicId.isNotEmpty) {
         request.fields['public_id'] = publicId;
+        paramsToSign['public_id'] = publicId;
       }
+      
+      // Generate signature: sort params alphabetically and concatenate
+      final sortedKeys = paramsToSign.keys.toList()..sort();
+      final signatureString = sortedKeys
+          .map((key) => '$key=${paramsToSign[key]}')
+          .join('&') + _apiSecret;
+      
+      print('🔐 Signature string: $signatureString');
+      final signature = _generateSha1(signatureString);
+      request.fields['signature'] = signature;
       
       // Send the request
       final response = await request.send();
@@ -90,11 +102,21 @@ class CloudinaryService {
   }) async {
     final List<String> urls = [];
     
-    for (final file in imageFiles) {
-      final url = await uploadHallImage(imageFile: file, hallId: hallId);
-      urls.add(url);
+    print('☁️ Uploading ${imageFiles.length} images to Cloudinary for hall $hallId');
+    for (int i = 0; i < imageFiles.length; i++) {
+      final file = imageFiles[i];
+      print('  📤 Uploading image ${i + 1}/${imageFiles.length}: ${file.path}');
+      try {
+        final url = await uploadHallImage(imageFile: file, hallId: hallId);
+        urls.add(url);
+        print('  ✅ Image ${i + 1} uploaded: $url');
+      } catch (e) {
+        print('  ❌ Failed to upload image ${i + 1}: $e');
+        rethrow;
+      }
     }
     
+    print('✅ All images uploaded successfully!');
     return urls;
   }
 
@@ -125,110 +147,7 @@ class CloudinaryService {
   /// Generate SHA1 hash for Cloudinary signature
   String _generateSha1(String input) {
     final bytes = utf8.encode(input);
-    
-    // SHA1 implementation
-    final sha1 = _Sha1();
-    sha1.update(bytes);
-    final digest = sha1.digest();
-    
-    return digest.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  }
-}
-
-/// Simple SHA1 implementation for Cloudinary signature
-class _Sha1 {
-  final List<int> _buffer = [];
-  final List<int> _h = [
-    0x67452301,
-    0xEFCDAB89,
-    0x98BADCFE,
-    0x10325476,
-    0xC3D2E1F0,
-  ];
-  int _length = 0;
-
-  void update(List<int> data) {
-    _buffer.addAll(data);
-    _length += data.length;
-  }
-
-  List<int> digest() {
-    // Padding
-    final bitLength = _length * 8;
-    _buffer.add(0x80);
-    while ((_buffer.length % 64) != 56) {
-      _buffer.add(0);
-    }
-    
-    // Append length
-    for (int i = 7; i >= 0; i--) {
-      _buffer.add((bitLength >> (i * 8)) & 0xFF);
-    }
-
-    // Process blocks
-    for (int i = 0; i < _buffer.length; i += 64) {
-      _processBlock(_buffer.sublist(i, i + 64));
-    }
-
-    // Convert to bytes
-    final result = <int>[];
-    for (final h in _h) {
-      result.add((h >> 24) & 0xFF);
-      result.add((h >> 16) & 0xFF);
-      result.add((h >> 8) & 0xFF);
-      result.add(h & 0xFF);
-    }
-    return result;
-  }
-
-  void _processBlock(List<int> block) {
-    final w = List<int>.filled(80, 0);
-    
-    for (int i = 0; i < 16; i++) {
-      w[i] = (block[i * 4] << 24) |
-             (block[i * 4 + 1] << 16) |
-             (block[i * 4 + 2] << 8) |
-             block[i * 4 + 3];
-    }
-    
-    for (int i = 16; i < 80; i++) {
-      w[i] = _rotateLeft(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
-    }
-
-    var a = _h[0], b = _h[1], c = _h[2], d = _h[3], e = _h[4];
-
-    for (int i = 0; i < 80; i++) {
-      int f, k;
-      if (i < 20) {
-        f = (b & c) | ((~b) & d);
-        k = 0x5A827999;
-      } else if (i < 40) {
-        f = b ^ c ^ d;
-        k = 0x6ED9EBA1;
-      } else if (i < 60) {
-        f = (b & c) | (b & d) | (c & d);
-        k = 0x8F1BBCDC;
-      } else {
-        f = b ^ c ^ d;
-        k = 0xCA62C1D6;
-      }
-
-      final temp = (_rotateLeft(a, 5) + f + e + k + w[i]) & 0xFFFFFFFF;
-      e = d;
-      d = c;
-      c = _rotateLeft(b, 30);
-      b = a;
-      a = temp;
-    }
-
-    _h[0] = (_h[0] + a) & 0xFFFFFFFF;
-    _h[1] = (_h[1] + b) & 0xFFFFFFFF;
-    _h[2] = (_h[2] + c) & 0xFFFFFFFF;
-    _h[3] = (_h[3] + d) & 0xFFFFFFFF;
-    _h[4] = (_h[4] + e) & 0xFFFFFFFF;
-  }
-
-  int _rotateLeft(int x, int n) {
-    return ((x << n) | (x >> (32 - n))) & 0xFFFFFFFF;
+    final digest = sha1.convert(bytes);
+    return digest.toString();
   }
 }

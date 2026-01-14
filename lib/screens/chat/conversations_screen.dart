@@ -4,12 +4,33 @@ import '../../config/theme.dart';
 import '../../models/message_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
-import '../../utils/helpers.dart';
 import '../../widgets/loading_widget.dart';
 import 'chat_screen.dart';
 
-class ConversationsScreen extends StatelessWidget {
+class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
+
+  @override
+  State<ConversationsScreen> createState() => _ConversationsScreenState();
+}
+
+class _ConversationsScreenState extends State<ConversationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load conversations when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      if (authProvider.user != null) {
+        print('👤 Current user ID: ${authProvider.user!.id}');
+        print('👤 Current user UID: ${authProvider.user!.uid}');
+        chatProvider.loadConversations(authProvider.user!.id);
+      } else {
+        print('❌ No user logged in');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,13 +77,6 @@ class ConversationsScreen extends StatelessWidget {
             return const Center(
               child: Text('Please login to view messages'),
             );
-          }
-
-          // Load conversations if not already loading
-          if (!chatProvider.isLoading && chatProvider.conversations.isEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              chatProvider.loadConversations(authProvider.user!.id);
-            });
           }
 
           if (chatProvider.isLoading) {

@@ -89,6 +89,8 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
       return;
     }
 
+    print('📸 Saving hall with ${_newImageFiles.length} new images and ${_imageUrls.length} existing URLs');
+
     setState(() => _isSaving = true);
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -119,6 +121,7 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
       );
 
       if (_isEditing) {
+        print('✏️ Updating existing hall...');
         await hallProvider.updateHall(
           hall,
           newImagePaths: _newImageFiles.isNotEmpty 
@@ -128,11 +131,12 @@ class _AddEditHallScreenState extends State<AddEditHallScreen> {
         if (!mounted) return;
         Helpers.showSuccessSnackbar(context, 'Hall updated successfully');
       } else {
+        final imagePaths = _newImageFiles.map((f) => f.path).toList();
+        print('🆕 Creating new hall with ${imagePaths.length} image paths');
+        print('   Image paths: $imagePaths');
         await hallProvider.createHall(
           hall,
-          imagePaths: _newImageFiles.isNotEmpty 
-            ? _newImageFiles.map((f) => f.path).toList() 
-            : null,
+          imagePaths: imagePaths,
         );
         if (!mounted) return;
         Helpers.showSuccessSnackbar(context, 'Hall created successfully');

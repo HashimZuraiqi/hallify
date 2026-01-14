@@ -13,8 +13,8 @@ class HallModel {
   final double pricePerHour;
   final double pricePerDay;
   final List<String> features;
-  final List<String> imageUrls; // DEPRECATED: Use imageBase64
-  final List<String> imageBase64; // Base64 encoded images for Firestore
+  final List<String> imageUrls; // Cloudinary URLs (preferred - fast loading)
+  final List<String> imageBase64; // Base64 encoded images (legacy - slow loading)
   final String city;
   final String address;
   final GeoPoint? location; // Firestore GeoPoint for location

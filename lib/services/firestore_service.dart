@@ -361,11 +361,20 @@ class FirestoreService {
 
   /// Get conversations for a user
   Stream<List<ConversationModel>> getUserConversations(String userId) {
+    print('🔍 Querying conversations for userId: $userId');
     return _conversationsCollection
         .where('participants', arrayContains: userId)
-        .orderBy('lastMessageTime', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => ConversationModel.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          print('📦 Found ${snapshot.docs.length} conversation documents');
+          final conversations = snapshot.docs.map((doc) {
+            print('  - Conversation ${doc.id}: ${doc.data()}');
+            return ConversationModel.fromFirestore(doc);
+          }).toList();
+          // Sort in memory instead of using orderBy (avoids index requirement)
+          conversations.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+          return conversations;
+        });
   }
 
   /// Mark messages as read
