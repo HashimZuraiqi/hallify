@@ -31,9 +31,11 @@
             </intent-filter>
         </activity>
         <!-- Google Maps API Key -->
+        <!-- ⚠️ IMPORTANT: Replace with your actual API key during build -->
+        <!-- This value is replaced during build from environment variables -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyB60AuVVaU0Y2PEj1EVbWSo2fkFhqrXaSA" />
+            android:value="${GOOGLE_MAPS_API_KEY}" />
         
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

@@ -35,6 +35,10 @@ android {
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
         }
+
+        // Inject Google Maps API Key from environment variable
+        // Usage: GOOGLE_MAPS_API_KEY=your_key ./gradlew assembleRelease
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = System.getenv("GOOGLE_MAPS_API_KEY") ?: "YOUR_API_KEY_HERE"
     }
 
     buildTypes {

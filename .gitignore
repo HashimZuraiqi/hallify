@@ -48,6 +48,16 @@ app.*.map.json
 # Note: For open-source projects, these should be gitignored
 # and documented in README for contributors to add their own
 google-services.json
+GoogleService-Info.plist
 firebase_options.dart
 .env
 .env.*
+.env.local
+.env.production
+
+# Android/iOS Firebase config
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# API Keys
+lib/config/api_keys.dart

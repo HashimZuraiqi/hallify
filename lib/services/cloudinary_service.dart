@@ -3,17 +3,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:crypto/crypto.dart';
+import '../config/api_config.dart';
 
 /// Service for uploading images to Cloudinary
 /// Free tier: 25GB storage, 25GB bandwidth/month
+/// 
+/// ⚠️ SECURITY: API credentials are loaded from environment variables
+/// See SECURITY.md for setup instructions
 class CloudinaryService {
-  // Your Cloudinary credentials
-  static const String _cloudName = 'dqerxkqrp';
-  static const String _apiKey = '235122485665848';
-  static const String _apiSecret = 'c4KI4dsYP7xtNGx4OoWqrlxjuNY';
-  
-  // Upload presets (create one in Cloudinary Dashboard → Settings → Upload → Add upload preset)
-  static const String _uploadPreset = 'hallify_unsigned'; // We'll create this
+  // Cloudinary credentials from environment variables
+  static String get _cloudName => ApiConfig.cloudinaryCloudName;
+  static String get _apiKey => ApiConfig.cloudinaryApiKey;
+  static String get _apiSecret => ApiConfig.cloudinaryApiSecret;
+  static String get _uploadPreset => ApiConfig.cloudinaryUploadPreset;
   
   final Uuid _uuid = const Uuid();
 
