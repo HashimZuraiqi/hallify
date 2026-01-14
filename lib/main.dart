@@ -10,6 +10,7 @@ import 'providers/visit_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/availability_provider.dart';
 import 'providers/booking_provider.dart';
+import 'providers/notification_provider.dart';
 import 'services/notification_service.dart';
 import 'screens/splash_screen.dart';
 
@@ -40,6 +41,7 @@ class HallifyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => AvailabilityProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: MaterialApp(
         title: 'Hallify',

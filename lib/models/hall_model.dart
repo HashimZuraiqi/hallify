@@ -219,19 +219,25 @@ class HallModel {
 
   /// Get first image URL or Base64 or placeholder
   String get primaryImageUrl {
-    // First check Base64 images (new system)
-    if (imageBase64.isNotEmpty) {
-      return imageBase64.first; // Return Base64 string
+    // First check URL images (Cloudinary - fast)
+    if (imageUrls.isNotEmpty) {
+      return imageUrls.first;
     }
-    // Fallback to URLs for backward compatibility
-    return imageUrls.isNotEmpty ? imageUrls.first : '';
+    // Fallback to Base64 for backward compatibility
+    if (imageBase64.isNotEmpty) {
+      return imageBase64.first;
+    }
+    return '';
   }
 
-  /// Check if hall has Base64 images
+  /// Check if hall has URL images (Cloudinary)
+  bool get hasUrlImages => imageUrls.isNotEmpty;
+  
+  /// Check if hall has Base64 images (legacy)
   bool get hasBase64Images => imageBase64.isNotEmpty;
   
-  /// Check if hall has URL images (legacy)
-  bool get hasUrlImages => imageUrls.isNotEmpty;
+  /// Get all available images (URLs first, then Base64)
+  List<String> get allImages => [...imageUrls, ...imageBase64];
 
   /// Get formatted price
   String get formattedPricePerHour => '${pricePerHour.toStringAsFixed(0)} JOD/hr';

@@ -62,12 +62,12 @@ class FirestoreService {
     }
   }
 
-  /// Get all halls (for customers)
-  Stream<List<HallModel>> getAllHalls() {
-    print('📡 Firestore query: halls where isAvailable=true');
+  /// Get all halls (for customers) - limited for performance
+  Stream<List<HallModel>> getAllHalls({int limit = 10}) {
+    print('📡 Firestore query: halls where isAvailable=true (limit: $limit)');
     return _hallsCollection
         .where('isAvailable', isEqualTo: true)
-        // .orderBy('createdAt', descending: true)  // TEMPORARILY DISABLED - needs index
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
           print('📦 Firestore returned ${snapshot.docs.length} documents');
@@ -75,11 +75,12 @@ class FirestoreService {
         });
   }
 
-  /// Get halls by organizer ID
-  Stream<List<HallModel>> getHallsByOrganizer(String organizerId) {
+  /// Get halls by organizer ID - limited for performance
+  Stream<List<HallModel>> getHallsByOrganizer(String organizerId, {int limit = 10}) {
     return _hallsCollection
         .where('organizerId', isEqualTo: organizerId)
         .orderBy('createdAt', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => HallModel.fromFirestore(doc)).toList());
   }

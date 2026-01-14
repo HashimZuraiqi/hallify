@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/hall_provider.dart';
 import '../../providers/visit_provider.dart';
 import '../../providers/booking_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/hall_card.dart';
 import '../../widgets/visit_card.dart';
@@ -14,6 +15,7 @@ import 'add_edit_hall_screen.dart';
 import 'organizer_bookings_screen.dart';
 import 'organizer_profile_screen.dart';
 import '../chat/conversations_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 class OrganizerHomeScreen extends StatefulWidget {
   const OrganizerHomeScreen({super.key});
@@ -53,6 +55,9 @@ class _OrganizerHomeScreenState extends State<OrganizerHomeScreen> {
       visitProvider.loadOrganizerVisits(authProvider.user!.id);
       // NEW: Start listening to bookings (new system)
       bookingProvider.startListeningToOrganizerBookings(authProvider.user!.id);
+      // NEW: Start listening to notifications
+      Provider.of<NotificationProvider>(context, listen: false)
+          .startListening(authProvider.user!.id);
     }
   }
 
@@ -123,6 +128,57 @@ class _DashboardTab extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Dashboard'),
         automaticallyImplyLeading: false,
+        actions: [
+          // Notification bell with badge
+          Consumer<NotificationProvider>(
+            builder: (context, notifProvider, _) {
+              return IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_outlined),
+                    if (notifProvider.hasUnread)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 14,
+                            minHeight: 14,
+                          ),
+                          child: Text(
+                            notifProvider.unreadCount > 9
+                                ? '9+'
+                                : '${notifProvider.unreadCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {

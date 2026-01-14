@@ -6,10 +6,12 @@ import '../../providers/hall_provider.dart';
 import '../../providers/visit_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/booking_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/hall_card.dart';
 import '../../widgets/loading_widget.dart';
 import '../chat/conversations_screen.dart';
+import '../notifications/notifications_screen.dart';
 import 'browse_halls_screen.dart';
 import 'hall_details_screen.dart';
 import 'my_bookings_screen.dart';
@@ -50,6 +52,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         chatProvider.loadConversations(authProvider.currentUser!.uid);
         // NEW: Start listening to bookings (new system)
         bookingProvider.startListeningToMyBookings(authProvider.currentUser!.uid);
+        // NEW: Start listening to notifications
+        Provider.of<NotificationProvider>(context, listen: false)
+            .startListening(authProvider.currentUser!.uid);
       }
     });
   }
@@ -155,16 +160,63 @@ class _HomeTab extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications_outlined,
-                      color: AppTheme.primaryColor,
-                    ),
+                  // Notification bell with badge
+                  Consumer<NotificationProvider>(
+                    builder: (context, notifProvider, _) {
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationsScreen(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Icon(
+                                Icons.notifications_outlined,
+                                color: AppTheme.primaryColor,
+                              ),
+                              if (notifProvider.hasUnread)
+                                Positioned(
+                                  right: -4,
+                                  top: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      notifProvider.unreadCount > 9
+                                          ? '9+'
+                                          : '${notifProvider.unreadCount}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
